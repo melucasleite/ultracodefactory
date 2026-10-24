@@ -1,0 +1,60 @@
+name: CodeFactory
+options:
+  bundleIdPrefix: app.codefactory
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Ad-hoc signing by default so anyone can build without an Apple team.
+    # For distribution, set these in a git-ignored Signing.local.xcconfig.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: YES
+packages:
+  CodeFactoryKit:
+    path: Packages/CodeFactoryKit
+targets:
+  CodeFactory:
+    type: application
+    platform: macOS
+    sources:
+      - path: App/CodeFactory
+    dependencies:
+      - package: CodeFactoryKit
+    entitlements:
+      path: App/CodeFactory/CodeFactory.entitlements
+      properties:
+        # Not sandboxed: the app's whole job is launching `tmux` and `claude`
+        # in repositories you choose. See SECURITY.md.
+        com.apple.security.app-sandbox: false
+    info:
+      path: App/CodeFactory/Info.plist
+      properties:
+        CFBundleDisplayName: Code Factory
+        CFBundleName: Code Factory
+        LSApplicationCategoryType: public.app-category.developer-tools
+        LSMinimumSystemVersion: "15.0"
+        NSHumanReadableCopyright: Copyright © 2026 Lucas Leite. MIT License.
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: app.codefactory.card-reference
+            UTTypeDescription: Code Factory Card
+            UTTypeConformsTo: [public.data]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.codefactory.CodeFactory
+        PRODUCT_NAME: Code Factory
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: NO
+        COMBINE_HIDPI_IMAGES: YES
+schemes:
+  CodeFactory:
+    build:
+      targets:
+        CodeFactory: all
+    test:
+      targets: []
