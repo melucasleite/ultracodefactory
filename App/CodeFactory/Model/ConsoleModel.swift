@@ -20,6 +20,8 @@ final class ConsoleModel {
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var sendChain: Task<Void, Never>?
     @ObservationIgnored private weak var factory: FactoryModel?
+    @ObservationIgnored private var fittedSize: (columns: Int, rows: Int)?
+    @ObservationIgnored private var fitTask: Task<Void, Never>?
 
     init(jobID: String) {
         self.jobID = jobID
@@ -72,6 +74,26 @@ final class ConsoleModel {
         question = (job.mode == .interactive && !sessionEnded && !plain.contains(JobStore.busyMarker))
             ? QuestionParser.parse(Self.lastScreenful(plain)) : nil
         revision &+= 1
+    }
+
+    // MARK: Size
+
+    /// Resizes the agent's tmux window to the console's size in character
+    /// cells, so its TUI redraws to fit instead of scrolling sideways.
+    /// Debounced, and skipped when nothing changed.
+    func fit(columns: Int, rows: Int) {
+        guard job?.mode == .interactive, let session = job?.session, let tmux else { return }
+        guard columns >= 20, rows >= 5 else { return }
+        if let fittedSize, fittedSize.columns == columns, fittedSize.rows == rows { return }
+        fitTask?.cancel()
+        fitTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            try? await tmux.resize(session, columns: columns, rows: rows)
+            self?.fittedSize = (columns, rows)
+            try? await Task.sleep(for: .milliseconds(200))
+            await self?.poll()
+        }
     }
 
     // MARK: Input

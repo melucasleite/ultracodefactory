@@ -19,9 +19,6 @@ struct Preferences {
 
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
-            Pref.createCommand: "/work-create",
-            Pref.workCommand: "/work",
-            Pref.triageCommand: "/work-triage",
             Pref.permissionMode: PermissionMode.acceptEdits.rawValue,
             Pref.notifications: true,
         ])

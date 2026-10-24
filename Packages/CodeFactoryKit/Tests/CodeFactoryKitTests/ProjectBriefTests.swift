@@ -74,3 +74,23 @@ import Testing
         #expect(p.contains("ONLY a JSON object"))
     }
 }
+
+@Suite struct AgentPromptTests {
+    let cards = URL(filePath: "/tmp/app/.codefactory")
+
+    @Test func createTargetsTodoAndQuotesTheIdea() {
+        let p = AgentPrompts.create(idea: "Dark mode", cardsFolder: cards)
+        #expect(p.contains("/tmp/app/.codefactory/todo"))
+        #expect(p.contains("\"Dark mode\""))
+    }
+
+    @Test func workNamesTheCardOrPicksTheNext() {
+        #expect(AgentPrompts.work(card: "fix-crash.md", cardsFolder: cards).contains("fix-crash.md"))
+        #expect(AgentPrompts.work(card: nil, cardsFolder: cards).contains("highest-priority"))
+        #expect(AgentPrompts.work(card: nil, cardsFolder: cards).contains("pull request"))
+    }
+
+    @Test func triageUsesNativeQuestions() {
+        #expect(AgentPrompts.triage(cardsFolder: cards).contains("AskUserQuestion"))
+    }
+}

@@ -198,26 +198,27 @@ the Trash.
 
 ### The agents
 
-Each action sends the agent a slash command you can change in
-**Settings → Agents**:
+Every action works out of the box with a prompt built into the app. No
+skills to install:
 
-| Action       | Default command | Runs as                |
-| ------------ | --------------- | ---------------------- |
-| Create Work  | `/work-create`  | headless (`claude -p`) |
-| Run Work     | `/work`         | interactive (tmux)     |
-| Triage       | `/work-triage`  | interactive (tmux)     |
-| Open Session | none            | interactive (tmux)     |
-| Plan Backlog | built in        | headless (`claude -p`) |
+| Action       | What the agent does                                             | Runs as                |
+| ------------ | --------------------------------------------------------------- | ---------------------- |
+| Create Work  | Turns your one-line idea into a card in To-Do                   | headless (`claude -p`) |
+| Run Work     | Picks up a card, builds it on a branch and opens a pull request | interactive (tmux)     |
+| Triage       | Walks Proposed and Waiting with you, one question at a time     | interactive (tmux)     |
+| Plan Backlog | Proposes a starter backlog from `PROJECT.md` or the code        | headless (`claude -p`) |
+| Open Session | A plain Claude Code session in the repository                   | interactive (tmux)     |
 
-Plan Backlog needs no skill: its prompt is built into the app, so a fresh
-install can turn a `PROJECT.md` (or an existing codebase) into a starter
-backlog on its own.
+Prefer your own workflow? In **Settings → Agents**, set a custom slash
+command for Create Work, Run Work or Triage and the agent receives that
+instead. Example skills are in [`Examples/skills`](Examples/skills): copy them
+into `~/.claude/skills/` or a project's `.claude/skills/`. Every agent also
+gets `CODE_FACTORY_CARDS` (the project's cards folder) and
+`CODE_FACTORY_PROJECT` in its environment, so a skill always knows where its
+cards live.
 
-Ready-to-use versions of these skills are in
-[`Examples/skills`](Examples/skills). Copy them into `~/.claude/skills/` or a
-project's `.claude/skills/`. Every agent also gets `CODE_FACTORY_CARDS` (the
-project's cards folder) and `CODE_FACTORY_PROJECT` in its environment, so a
-skill always knows where its cards live.
+Interactive consoles resize the agent's terminal to fit the window, so
+Claude Code redraws at the right width as you resize.
 
 ### Keyboard shortcuts
 

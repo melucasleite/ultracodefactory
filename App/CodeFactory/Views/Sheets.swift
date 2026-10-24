@@ -29,7 +29,9 @@ struct CreateWorkSheet: View {
                     .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
             }
-            Text("Runs `\(model.prompt(for: .create, text: "…"))` in **\(model.project(project)?.name ?? "the project")** with permission mode *\(model.prefs.permissionMode.title.lowercased())*.")
+            Text(model.customCommand(for: .create).isEmpty
+                 ? "A headless agent looks at **\(model.project(project)?.name ?? "the project")** and writes the card, with permission mode *\(model.prefs.permissionMode.title.lowercased())*."
+                 : "Runs `\(model.customCommand(for: .create)) …` in **\(model.project(project)?.name ?? "the project")** with permission mode *\(model.prefs.permissionMode.title.lowercased())*.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {

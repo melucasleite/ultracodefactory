@@ -237,18 +237,43 @@ final class FactoryModel {
         )
     }
 
-    /// Builds the agent's first message: the configured slash command for the
-    /// action, followed by whatever the user typed.
-    func prompt(for action: LaunchAction, text: String) -> String {
-        let command: String = switch action {
+    /// Builds the agent's first message: your slash command for the action if
+    /// you set one in Settings, otherwise the built-in prompt.
+    func prompt(for action: LaunchAction, project: Project, text: String) -> String {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let command = customCommand(for: action)
+        if !command.isEmpty {
+            return [command, text].filter { !$0.isEmpty }.joined(separator: " ")
+        }
+        switch action {
+        case .create: return AgentPrompts.create(idea: text, cardsFolder: project.cardsRoot)
+        case .work: return AgentPrompts.work(card: text.isEmpty ? nil : text, cardsFolder: project.cardsRoot)
+        case .triage: return AgentPrompts.triage(cardsFolder: project.cardsRoot)
+        case .session: return text
+        case .plan: return BacklogPlanner.prompt(cardsFolder: project.cardsRoot, fromExistingCode: true)
+        }
+    }
+
+    /// The slash command configured for an action, or "" for the built-in prompt.
+    func customCommand(for action: LaunchAction) -> String {
+        switch action {
         case .create: prefs.createCommand
         case .work: prefs.workCommand
         case .triage: prefs.triageCommand
         case .session, .plan: ""
         }
-        return [command, text.trimmingCharacters(in: .whitespacesAndNewlines)]
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+    }
+
+    /// A short, human description of what an action will send.
+    func jobLabel(for action: LaunchAction, text: String) -> String? {
+        guard customCommand(for: action).isEmpty else { return nil }
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch action {
+        case .create: return text.isEmpty ? nil : "Create: \(text)"
+        case .work: return text.isEmpty ? "Work the next card" : "Work \(text)"
+        case .triage: return "Triage the backlog"
+        default: return nil
+        }
     }
 
     @discardableResult
@@ -262,7 +287,8 @@ final class FactoryModel {
         guard let id = projectID ?? selectedProject, let project = project(id) else { return nil }
         let config = launchConfiguration
         requestNotificationPermissionIfNeeded()
-        let prompt = fullPrompt ?? prompt(for: action, text: text)
+        let prompt = fullPrompt ?? prompt(for: action, project: project, text: text)
+        let label = label ?? (fullPrompt == nil ? jobLabel(for: action, text: text) : nil)
         do {
             var job: Job
             if action.isInteractive {

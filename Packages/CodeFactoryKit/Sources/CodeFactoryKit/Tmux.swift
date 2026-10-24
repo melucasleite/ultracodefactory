@@ -79,6 +79,14 @@ public struct Tmux: Sendable {
         try await ProcessRunner.run(binary, ["send-keys", "-t", try Self.validate(session: name), "-l", "--", text])
     }
 
+    /// Resizes the session's window so the agent's TUI redraws to fit the console.
+    public func resize(_ name: String, columns: Int, rows: Int) async throws {
+        let session = try Self.validate(session: name)
+        try await ProcessRunner.run(binary, [
+            "resize-window", "-t", session, "-x", String(max(20, columns)), "-y", String(max(5, rows)),
+        ])
+    }
+
     public func kill(_ name: String) async throws {
         try await ProcessRunner.run(binary, ["kill-session", "-t", "=\(try Self.validate(session: name))"])
     }

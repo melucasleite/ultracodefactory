@@ -15,9 +15,9 @@ struct SettingsView: View {
 private struct AgentSettings: View {
     @AppStorage(Pref.claudePath) private var claudePath = ""
     @AppStorage(Pref.tmuxPath) private var tmuxPath = ""
-    @AppStorage(Pref.createCommand) private var createCommand = "/work-create"
-    @AppStorage(Pref.workCommand) private var workCommand = "/work"
-    @AppStorage(Pref.triageCommand) private var triageCommand = "/work-triage"
+    @AppStorage(Pref.createCommand) private var createCommand = ""
+    @AppStorage(Pref.workCommand) private var workCommand = ""
+    @AppStorage(Pref.triageCommand) private var triageCommand = ""
     @AppStorage(Pref.permissionMode) private var permissionMode = PermissionMode.acceptEdits.rawValue
 
     var body: some View {
@@ -46,13 +46,13 @@ private struct AgentSettings: View {
                 Text("Passed to Claude Code as `--permission-mode`. Headless agents can’t answer permission prompts, so actions outside the mode are refused.")
             }
             Section {
-                TextField("Create Work", text: $createCommand, prompt: Text("/work-create"))
-                TextField("Run Work", text: $workCommand, prompt: Text("/work"))
-                TextField("Triage", text: $triageCommand, prompt: Text("/work-triage"))
+                TextField("Create Work", text: $createCommand, prompt: Text("Built-in prompt"))
+                TextField("Run Work", text: $workCommand, prompt: Text("Built-in prompt"))
+                TextField("Triage", text: $triageCommand, prompt: Text("Built-in prompt"))
             } header: {
-                Text("Slash commands")
+                Text("Custom slash commands (optional)")
             } footer: {
-                Text("The first message each agent receives. Example skills ship in the repository’s *Examples/skills* folder.")
+                Text("Leave these empty to use Ultra Code Factory’s built-in prompts. Set one, e.g. `/work`, to send your own Claude Code skill instead; example skills ship in the repository’s *Examples/skills* folder.")
             }
         }
         .formStyle(.grouped)

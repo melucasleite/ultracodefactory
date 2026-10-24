@@ -75,17 +75,22 @@ struct ConsoleView: View {
 
     private var terminal: some View {
         ScrollViewReader { proxy in
-            ScrollView([.vertical, .horizontal]) {
+            ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(console.screen)
-                        .font(.system(size: 12, design: .monospaced))
+                        .font(Font(TerminalMetrics.font))
                         .foregroundStyle(TerminalPalette.foreground)
                         .textSelection(.enabled)
-                        .fixedSize()
-                        .padding(12)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(TerminalMetrics.padding)
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+                let cells = TerminalMetrics.cells(fitting: size)
+                console.fit(columns: cells.columns, rows: cells.rows)
             }
             .background(TerminalPalette.background.opacity(0.92))
             .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -220,5 +225,21 @@ struct QuestionPanel: View {
         .padding(16)
         .glassPanel(cornerRadius: 20, tint: Theme.hazardYellow.opacity(0.4))
         .padding(.horizontal, 10).padding(.top, 10)
+    }
+}
+
+/// Character-cell geometry for the console's monospaced text.
+@MainActor
+enum TerminalMetrics {
+    static let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+    static let padding: CGFloat = 12
+
+    static let cellWidth: CGFloat = ("M" as NSString).size(withAttributes: [.font: font]).width
+    static let lineHeight: CGFloat = NSLayoutManager().defaultLineHeight(for: font)
+
+    static func cells(fitting size: CGSize) -> (columns: Int, rows: Int) {
+        let columns = Int(((size.width - padding * 2) / cellWidth).rounded(.down))
+        let rows = Int(((size.height - padding * 2) / lineHeight).rounded(.down))
+        return (columns - 1, rows) // one column of slack so nothing wraps on rounding
     }
 }
