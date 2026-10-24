@@ -30,7 +30,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/board.jpg" alt="The Ultra Code Factory board: six glass columns over an orange and blue aurora, a card being fabricated by an agent, and the Factory Floor panel listing three live agents" width="100%">
+  <img src="docs/screenshots/board.jpg" alt="The Ultra Code Factory board on a busy day: glass columns of cards over an orange and blue aurora, two cards being fabricated by agents, a freshly arrived card glowing orange, green Review PR buttons on waiting and done cards, and the Factory Floor panel listing four live agents" width="100%">
 </p>
 
 ---
@@ -83,7 +83,7 @@ What Ultra Code Factory believes, and builds for.
 | 🧪 **Demo Factory**         | One click sets up a scratch repo with sample cards, so you can try everything without touching real code.                                                                                    |
 
 <p align="center">
-  <img src="docs/screenshots/console.jpg" alt="An agent console: Claude's triage question shown in the terminal and again as three native glass buttons" width="80%">
+  <img src="docs/screenshots/console.jpg" alt="An agent console: Claude's triage question shown in the terminal and again as four native glass buttons" width="80%">
 </p>
 
 ## The magic
@@ -94,9 +94,15 @@ Little moments that make one person feel like a crew.
   idea in a sentence and click **Suggest the rest from my pitch**. A quick,
   read-only Claude call pre-selects platforms, stack, features and style as
   chips you can change.
+
+  <img src="docs/screenshots/wizard.jpg" alt="The New Project wizard's features step: suggested features such as Water reminders, Plant photo journal and Shared plant households pre-selected as orange chips" width="100%">
+
 - 🏗️ **It builds the factory for you.** Finish the wizard and watch a
   checklist tick by: folder, `PROJECT.md`, git, board, then a planner agent
   that drafts your first backlog into Proposed.
+
+  <img src="docs/screenshots/finale-open.jpg" alt="The build finale: a green seal reading Your factory is open above a ticked checklist, with the new project's board filling in behind" width="100%">
+
 - 📥 **Work arrives on its own.** Cards an agent writes drop onto the board
   with a spring and a short glow. No refresh: the board watches the disk.
 - 🔀 **Review is one click away.** When a card links its pull request (the
@@ -104,6 +110,8 @@ Little moments that make one person feel like a crew.
 - ☕ **It tells you what you missed.** Come back after a while and a glass
   banner sums it up: what shipped, what's waiting on you, and how many PRs are
   ready for review.
+
+  <img src="docs/screenshots/away.jpg" alt="The While you were away banner at the top of the board: pull requests ready for review and agents waiting" width="100%">
 
 ## Quick start
 
@@ -187,10 +195,6 @@ A card's folder is its real status. When you move a card, Ultra Code Factory
 rewrites only the `status:` and `updated:` lines and leaves every other byte
 alone. A move never overwrites another card, and deleting a card sends it to
 the Trash.
-
-<p align="center">
-  <img src="docs/screenshots/card.jpg" alt="A card open in its detail sheet: rendered markdown with ticked checkboxes, a code block, and a status picker" width="80%">
-</p>
 
 ### The agents
 
