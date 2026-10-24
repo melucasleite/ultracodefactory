@@ -19,6 +19,7 @@ private struct AgentSettings: View {
     @AppStorage(Pref.workCommand) private var workCommand = ""
     @AppStorage(Pref.triageCommand) private var triageCommand = ""
     @AppStorage(Pref.permissionMode) private var permissionMode = PermissionMode.acceptEdits.rawValue
+    @AppStorage(Pref.fastFixes) private var fastFixes = true
 
     var body: some View {
         Form {
@@ -44,6 +45,17 @@ private struct AgentSettings: View {
                 Text("Safety")
             } footer: {
                 Text("Passed to Claude Code as `--permission-mode`. Headless agents can’t answer permission prompts, so actions outside the mode are refused.")
+            }
+            Section {
+                Toggle(isOn: $fastFixes) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Fix merge conflicts with a faster model")
+                        Text("Conflict fixers run on Sonnet and skip full test suites (CI runs those), so they finish in minutes.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Speed")
             }
             Section {
                 TextField("Create Work", text: $createCommand, prompt: Text("Built-in prompt"))

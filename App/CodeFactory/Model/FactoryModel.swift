@@ -578,9 +578,11 @@ final class FactoryModel {
             let checkout = try await GitWorktree.checkout(repository: project.repository, slug: card.slug, root: root, branch: pr.headRefName)
             let prompt = AgentPrompts.fixConflicts(card: card.slug, pullRequest: pr.number, branch: checkout.branch,
                                                    base: pr.baseRefName, cardsFolder: project.cardsRoot)
+            var config = launchConfiguration
+            if prefs.fastFixes { config.extraArguments += ["--model", "sonnet"] }
             var job = try await AgentLauncher.startInteractive(
                 project: project, prompt: prompt, action: LaunchAction.fixConflicts.rawValue,
-                config: launchConfiguration, worktree: checkout
+                config: config, worktree: checkout
             )
             job.card = card.slug
             job.prompt = "Fix conflicts in PR #\(pr.number): \(card.title)"

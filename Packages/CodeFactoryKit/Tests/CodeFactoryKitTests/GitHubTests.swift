@@ -24,5 +24,6 @@ import Testing
                                           cardsFolder: URL(filePath: "/tmp/app/.codefactory"))
         #expect(p.contains("git merge origin/main"))
         #expect(p.contains("Don't change what the card is about"))
+        #expect(p.contains("Do not run full test suites"))
     }
 }

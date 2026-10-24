@@ -63,7 +63,7 @@ public enum AgentPrompts {
 
         You are one of several Ultra Code Factory workers running in parallel. You are in your own git worktree on branch `\(branch)`, so your changes can't collide with other workers. Work only on the card \(card).md: do not pick up, move or edit any other card.
 
-        First move \(card).md to picked-up. Implement it with tests on this branch and tick its acceptance criteria as you go. When it's done, commit, push the branch and open a pull request (use `gh pr create` if the GitHub CLI is available). Add the PR URL to the bottom of the card and move it to waiting, where it waits for review. If you need a decision before you can finish, write the question at the bottom of the card, leave it in picked-up and ask me. Ask before anything destructive or irreversible.
+        First move \(card).md to picked-up. Implement it with tests on this branch and tick its acceptance criteria as you go. When it's done, merge the latest main into your branch and resolve any conflicts (other workers are merging too), then commit, push the branch and open a pull request (use `gh pr create` if the GitHub CLI is available). Add the PR URL to the bottom of the card and move it to waiting, where it waits for review. If you need a decision before you can finish, write the question at the bottom of the card, leave it in picked-up and ask me. Ask before anything destructive or irreversible.
         """
     }
 
@@ -85,7 +85,7 @@ public enum AgentPrompts {
 
         Pull request #\(pullRequest) for the card \(card).md has merge conflicts with `\(base)`. You are in the PR's worktree on branch `\(branch)`.
 
-        Fetch the latest `\(base)` and merge it into this branch (`git fetch origin && git merge origin/\(base)`), resolve every conflict so both sides' intent is preserved, then build and run the tests. Don't change what the card is about or rewrite unrelated code. Commit the resolution, push the branch, and confirm with `gh pr view \(pullRequest) --json mergeable` that GitHub no longer reports conflicts. Leave the card in waiting. If a conflict is genuinely ambiguous, write the question at the bottom of the card and ask me rather than guessing.
+        Fetch the latest `\(base)` and merge it into this branch (`git fetch origin && git merge origin/\(base)`), resolve every conflict so both sides' intent is preserved, then do one quick check that the result compiles (build or type-check only what the conflicts touched). Do not run full test suites, UI tests or simulators: CI runs those on the PR, and this should take minutes, not an hour. Don't change what the card is about or rewrite unrelated code. Commit the resolution, push the branch, and confirm with `gh pr view \(pullRequest) --json mergeable` that GitHub no longer reports conflicts. Leave the card in waiting. If a conflict is genuinely ambiguous, write the question at the bottom of the card and ask me rather than guessing.
         """
     }
 }

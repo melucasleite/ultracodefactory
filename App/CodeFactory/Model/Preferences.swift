@@ -12,6 +12,7 @@ enum Pref {
     static let permissionMode = "permissionMode"
     static let notifications = "notifications"
     static let selectedProject = "selectedProject"
+    static let fastFixes = "fastFixes"
 }
 
 struct Preferences {
@@ -21,6 +22,7 @@ struct Preferences {
         UserDefaults.standard.register(defaults: [
             Pref.permissionMode: PermissionMode.acceptEdits.rawValue,
             Pref.notifications: true,
+            Pref.fastFixes: true,
         ])
     }
 
@@ -32,6 +34,8 @@ struct Preferences {
     var workCommand: String { string(Pref.workCommand) }
     var triageCommand: String { string(Pref.triageCommand) }
     var notifications: Bool { defaults.bool(forKey: Pref.notifications) }
+    /// Run merge-conflict fixes on a faster model.
+    var fastFixes: Bool { defaults.bool(forKey: Pref.fastFixes) }
     var permissionMode: PermissionMode {
         PermissionMode(rawValue: string(Pref.permissionMode)) ?? .acceptEdits
     }
