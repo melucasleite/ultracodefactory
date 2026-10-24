@@ -67,6 +67,21 @@ public struct Tmux: Sendable {
         return Self.trimmingBlankRows(result.stdout)
     }
 
+    /// Collapses runs of empty rows inside the pane to a single one. Claude
+    /// Code pins its input box to the bottom of the terminal, which leaves a
+    /// tall blank band between the output and the prompt.
+    public static func compactingBlankRows(_ text: String) -> String {
+        var out: [String] = []
+        var previousBlank = false
+        for line in text.components(separatedBy: "\n") {
+            let blank = ANSIParser.strip(line).trimmingCharacters(in: .whitespaces).isEmpty
+            if blank && previousBlank { continue }
+            out.append(line)
+            previousBlank = blank
+        }
+        return out.joined(separator: "\n")
+    }
+
     /// Drops the empty rows below the last line of output: a pane is always
     /// its full height, but the console should end where the text does.
     static func trimmingBlankRows(_ text: String) -> String {

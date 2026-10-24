@@ -37,4 +37,9 @@ import Testing
         #expect(Tmux.trimmingBlankRows(pane) == "● Working\n  ⏺ Edit")
         #expect(Tmux.trimmingBlankRows("a\n\nb") == "a\n\nb")
     }
+
+    @Test func blankBandsCollapseToOneRow() {
+        let pane = "output\n\n   \n\u{1B}[0m\n\n✻ Working\n────\n❯ "
+        #expect(Tmux.compactingBlankRows(pane) == "output\n\n✻ Working\n────\n❯ ")
+    }
 }

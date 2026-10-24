@@ -44,7 +44,13 @@ struct ConsoleView: View {
         }
         .frame(minWidth: 720, minHeight: 480)
         .background(FactoryBackdrop(animated: false))
-        .onAppear { console.start(factory: factory) }
+        .onAppear {
+            console.job = factory.job(console.jobID)
+            console.tmuxURL = factory.prefs.tmux
+            console.start()
+            refit()
+        }
+        .onChange(of: factory.job(console.jobID)) { _, job in console.job = job }
         .onDisappear { console.stop() }
     }
 

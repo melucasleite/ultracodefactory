@@ -19,19 +19,19 @@ final class ConsoleModel {
     @ObservationIgnored private var raw = ""
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var sendChain: Task<Void, Never>?
-    @ObservationIgnored private weak var factory: FactoryModel?
+    @ObservationIgnored private var wantedSize: (columns: Int, rows: Int)?
     @ObservationIgnored private var fittedSize: (columns: Int, rows: Int)?
-    @ObservationIgnored private var fitTask: Task<Void, Never>?
+    @ObservationIgnored private var fitting = false
+
+    /// The job and tmux binary, handed in by the window and kept current by it.
+    var job: Job?
+    @ObservationIgnored var tmuxURL: URL?
 
     init(jobID: String) {
         self.jobID = jobID
     }
 
-    var job: Job? { factory?.job(jobID) }
-
-    func start(factory: FactoryModel) {
-        self.factory = factory
-        revision &+= 1 // re-render now that the job can be resolved
+    func start() {
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -46,10 +46,11 @@ final class ConsoleModel {
         pollTask = nil
     }
 
-    private var tmux: Tmux? { factory?.prefs.tmux.map(Tmux.init) }
+    private var tmux: Tmux? { tmuxURL.map(Tmux.init) }
 
     private func poll() async {
         guard let job else { return }
+        await applyFit()
         var next: String
         switch job.mode {
         case .interactive:
@@ -69,7 +70,7 @@ final class ConsoleModel {
         if sessionEnded || !job.state.isActive { question = nil }
         guard next != raw else { return }
         raw = next
-        let runs = ANSIParser.parse(next)
+        let runs = ANSIParser.parse(job.mode == .interactive ? Tmux.compactingBlankRows(next) : next)
         plain = runs.map(\.text).joined()
         screen = TerminalPalette.attributed(runs)
         question = (job.mode == .interactive && !sessionEnded && !plain.contains(JobStore.busyMarker))
@@ -79,21 +80,26 @@ final class ConsoleModel {
 
     // MARK: Size
 
-    /// Resizes the agent's tmux window to the console's size in character
-    /// cells, so its TUI redraws to fit instead of scrolling sideways.
-    /// Debounced, and skipped when nothing changed.
+    /// Remembers the console's size in character cells. The next poll
+    /// resizes the agent's tmux window to match, and keeps trying until it
+    /// sticks, so the TUI redraws to fit instead of wrapping.
     func fit(columns: Int, rows: Int) {
-        guard job?.mode == .interactive, let session = job?.session, let tmux else { return }
         guard columns >= 20, rows >= 5 else { return }
-        if let fittedSize, fittedSize.columns == columns, fittedSize.rows == rows { return }
-        fitTask?.cancel()
-        fitTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(150))
-            guard !Task.isCancelled else { return }
-            try? await tmux.resize(session, columns: columns, rows: rows)
-            self?.fittedSize = (columns, rows)
-            try? await Task.sleep(for: .milliseconds(200))
-            await self?.poll()
+        wantedSize = (columns, rows)
+        Task { await applyFit() }
+    }
+
+    private func applyFit() async {
+        guard !fitting, let wanted = wantedSize, job?.mode == .interactive,
+              let session = job?.session, let tmux else { return }
+        if let fittedSize, fittedSize == wanted { return }
+        fitting = true
+        defer { fitting = false }
+        do {
+            try await tmux.resize(session, columns: wanted.columns, rows: wanted.rows)
+            fittedSize = wanted
+        } catch {
+            // Try again on the next poll.
         }
     }
 
