@@ -162,3 +162,19 @@ import Testing
         #expect(byFile["third.md"] == 4)
     }
 }
+
+@Suite struct MoveAllTests {
+    @Test func movesEverythingAndSkipsCollisions() throws {
+        let board = CardBoard(root: FileManager.default.temporaryDirectory.appending(path: "cf-moveall-\(UUID().uuidString)"), project: "p")
+        try board.prepare()
+        try board.create(title: "One", status: .proposed)
+        try board.create(title: "Two", status: .proposed)
+        try board.create(title: "Two", status: .todo) // same name already in To-Do
+        let skipped = try board.moveAll(from: .proposed, to: .todo)
+        #expect(skipped == ["two.md"])
+        let cards = board.listCards()
+        #expect(cards.filter { $0.status == .proposed }.map(\.file) == ["two.md"])
+        #expect(Set(cards.filter { $0.status == .todo }.map(\.file)) == ["one.md", "two.md"])
+        #expect(try board.read(status: .todo, file: "one.md").contains("status: todo"))
+    }
+}

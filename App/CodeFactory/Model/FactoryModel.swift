@@ -191,6 +191,20 @@ final class FactoryModel {
         reload()
     }
 
+    /// Moves a whole column, e.g. approving every proposed card into To-Do.
+    func moveAll(from: CardStatus, to: CardStatus) {
+        guard let selected else { return }
+        do {
+            let skipped = try selected.board.moveAll(from: from, to: to)
+            if !skipped.isEmpty {
+                errorMessage = "Left \(skipped.count) card\(skipped.count == 1 ? "" : "s") in \(from.title): a card with the same name is already in \(to.title)."
+            }
+        } catch {
+            report(error)
+        }
+        reload()
+    }
+
     /// Drops `ref` just before `target` in the build order, moving it to
     /// the target's column first if it came from another one.
     func place(_ ref: CardReference, before target: Card) {

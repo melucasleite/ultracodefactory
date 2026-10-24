@@ -125,6 +125,23 @@ public struct CardBoard: Sendable {
         try FileManager.default.removeItem(at: source)
     }
 
+    /// Moves every card in `from` to `to`, in build order. A card whose name
+    /// is already taken in the destination is left where it is; their names
+    /// are returned so the caller can say so.
+    @discardableResult
+    public func moveAll(from: CardStatus, to: CardStatus, today: Date = .now) throws -> [String] {
+        guard from != to else { return [] }
+        var skipped: [String] = []
+        for card in listCards() where card.status == from {
+            do {
+                try move(file: card.file, from: from, to: to, today: today)
+            } catch CardError.alreadyExists {
+                skipped.append(card.file)
+            }
+        }
+        return skipped
+    }
+
     /// Puts a card just before `target` (or last when `target` is nil) in
     /// the project's execution order, then renumbers every card's `order:`
     /// 1…n. Cards keep their relative order otherwise; only `order:` lines

@@ -59,6 +59,34 @@ struct ColumnView: View {
                     .shadow(color: tint.opacity(0.6), radius: 6)
                 Text(status.title).font(.headline)
                 Spacer()
+                if status == .proposed, !cards.isEmpty {
+                    Button {
+                        model.moveAll(from: .proposed, to: .todo)
+                    } label: {
+                        Label("Approve All", systemImage: "checkmark.circle.fill")
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(Theme.color(for: .todo))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Move all \(cards.count) proposed cards to To-Do")
+                }
+                if !cards.isEmpty {
+                    Menu {
+                        ForEach(CardStatus.allCases.filter { $0 != status }) { target in
+                            Button("Move All to \(target.title)", systemImage: target.symbol) {
+                                model.moveAll(from: status, to: target)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .foregroundStyle(.secondary)
+                    .help("Move every card in \(status.title)")
+                }
                 Text("\(cards.count)")
                     .font(.caption.monospacedDigit().weight(.bold))
                     .foregroundStyle(tint)
