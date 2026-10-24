@@ -260,7 +260,7 @@ private struct RunWorkMenu: View {
                 Label("Auto Mode", systemImage: "bolt.fill")
             }
             Menu("Parallel Workers: \(mode.workers)") {
-                ForEach(Array(AutoMode.range), id: \.self) { n in
+                ForEach(AutoMode.presets, id: \.self) { n in
                     Button {
                         model.setWorkerLimit(n, for: id)
                     } label: {

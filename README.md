@@ -206,7 +206,7 @@ skills to install:
 | ---------------- | --------------------------------------------------------------- | ---------------------- |
 | Create Work      | Turns your one-line idea into a card in To-Do                   | headless (`claude -p`) |
 | Run Work         | Picks up a card, builds it on a branch and opens a pull request | interactive (tmux)     |
-| Auto mode        | Keeps 1–6 workers busy on ready cards, in parallel              | interactive (tmux)     |
+| Auto mode        | Keeps 1–20 workers busy on ready cards, in parallel             | interactive (tmux)     |
 | Map Dependencies | Fills in `depends_on:` across the board                         | headless (`claude -p`) |
 | Triage           | Walks Proposed and Waiting with you, one question at a time     | interactive (tmux)     |
 | Plan Backlog     | Proposes a starter backlog from `PROJECT.md` or the code        | headless (`claude -p`) |
@@ -223,7 +223,7 @@ cards live.
 ### Auto mode: parallel workers
 
 Open the **Run Work** menu and switch on **Auto mode**, then choose how many
-workers to run (1–6). The factory keeps that many agents busy:
+workers to run (1–20; the Factory Floor's − / + adjusts it any time). The factory keeps that many agents busy:
 
 - Each worker takes the next **ready** card in build order: one whose
   `depends_on:` cards are all Done. Blocked cards show a lock badge such as

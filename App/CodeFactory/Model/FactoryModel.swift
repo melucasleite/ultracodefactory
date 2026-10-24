@@ -471,7 +471,7 @@ final class FactoryModel {
         Task { await runAutoMode() }
     }
 
-    /// Sets how many workers Auto mode keeps busy (clamped to 1–6).
+    /// Sets how many workers Auto mode keeps busy (clamped to 1–20).
     func setWorkerLimit(_ workers: Int, for projectID: String) {
         var mode = autoMode(for: projectID)
         mode.workers = min(max(workers, AutoMode.range.lowerBound), AutoMode.range.upperBound)
@@ -658,7 +658,9 @@ struct AutoMode: Codable, Equatable {
     var enabled = false
     var workers = 3
 
-    static let range = 1...6
+    static let range = 1...20
+    /// Quick picks for the Run Work menu; the floor stepper covers every value.
+    static let presets = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20]
     private static let key = "autoModes"
 
     static func load() -> [String: AutoMode] {
