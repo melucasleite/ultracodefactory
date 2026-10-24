@@ -126,6 +126,48 @@ public struct CardBoard: Sendable {
         try FileManager.default.removeItem(at: source)
     }
 
+    /// A frontmatter-less file whose name matches a real card in another
+    /// column: an agent appended a note to a card's old path.
+    public struct Stray: Sendable, Hashable {
+        public var fragment: URL
+        public var card: URL
+    }
+
+    public func strays() -> [Stray] {
+        var real: [String: URL] = [:]
+        var fragments: [(String, URL)] = []
+        for status in CardStatus.allCases {
+            let files = (try? FileManager.default.contentsOfDirectory(
+                at: statusURL(status), includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+            )) ?? []
+            for url in files where url.pathExtension == "md" {
+                let content = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+                if Frontmatter.parse(content).present { real[url.lastPathComponent] = url }
+                else { fragments.append((url.lastPathComponent, url)) }
+            }
+        }
+        return fragments.compactMap { name, url in real[name].map { Stray(fragment: url, card: $0) } }
+    }
+
+    /// Appends each stray's text to its real card and moves the stray to the
+    /// Trash. Returns the cards that received a note.
+    @discardableResult
+    public func tidyStrays() throws -> [URL] {
+        var touched: [URL] = []
+        for stray in strays() {
+            let note = (try String(contentsOf: stray.fragment, encoding: .utf8)).trimmingCharacters(in: .whitespacesAndNewlines)
+            var card = try String(contentsOf: stray.card, encoding: .utf8)
+            if !note.isEmpty, !card.contains(note) {
+                let folder = stray.fragment.deletingLastPathComponent().lastPathComponent
+                card += "\n\n## Note recovered from a stray copy in \(folder)/\n\n\(note)\n"
+                try card.write(to: stray.card, atomically: true, encoding: .utf8)
+                touched.append(stray.card)
+            }
+            try FileManager.default.trashItem(at: stray.fragment, resultingItemURL: nil)
+        }
+        return touched
+    }
+
     /// Moves every card in `from` to `to`, in build order. A card whose name
     /// is already taken in the destination is left where it is; their names
     /// are returned so the caller can say so.

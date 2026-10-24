@@ -10,6 +10,14 @@ struct ConsoleView: View {
     @State private var copied = false
     @State private var confirmStop = false
     @FocusState private var terminalFocused: Bool
+    @State private var textWidth: CGFloat = 0
+    @State private var viewHeight: CGFloat = 0
+
+    private func refit() {
+        guard textWidth > 0, viewHeight > 0 else { return }
+        let cells = TerminalMetrics.cells(fitting: CGSize(width: textWidth, height: viewHeight))
+        console.fit(columns: cells.columns, rows: cells.rows)
+    }
 
     init(jobID: String) {
         _console = State(initialValue: ConsoleModel(jobID: jobID))
@@ -84,13 +92,19 @@ struct ConsoleView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(TerminalMetrics.padding)
+                        // Measure the text area itself (inside the scroll view, so the
+                        // scroller's gutter isn't counted) and fit the agent's terminal to it.
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                            textWidth = width
+                            refit()
+                        }
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
-                let cells = TerminalMetrics.cells(fitting: size)
-                console.fit(columns: cells.columns, rows: cells.rows)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                viewHeight = height
+                refit()
             }
             .background(TerminalPalette.background.opacity(0.92))
             .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -240,6 +254,6 @@ enum TerminalMetrics {
     static func cells(fitting size: CGSize) -> (columns: Int, rows: Int) {
         let columns = Int(((size.width - padding * 2) / cellWidth).rounded(.down))
         let rows = Int(((size.height - padding * 2) / lineHeight).rounded(.down))
-        return (columns - 1, rows) // one column of slack so nothing wraps on rounding
+        return (columns - 2, rows) // slack so rounding never wraps a full-width line
     }
 }

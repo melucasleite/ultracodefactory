@@ -201,8 +201,27 @@ struct CardTile: View {
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
+            if let pr = model.pullRequestStatus(for: card), pr.hasConflicts, model.worker(on: card) == nil {
+                HStack(spacing: 6) {
+                    Label("Merge conflicts", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.red)
+                    Spacer(minLength: 0)
+                    Button {
+                        Task { await model.fixConflicts(card) }
+                    } label: {
+                        Label("Fix", systemImage: LaunchAction.fixConflicts.symbol).font(.caption2.weight(.bold))
+                    }
+                    .glassButton(prominent: true)
+                    .tint(.red)
+                    .controlSize(.mini)
+                    .help("Start an agent that merges \(pr.baseRefName) into PR #\(pr.number) and resolves the conflicts")
+                }
+            }
             if let worker = model.worker(on: card) {
-                Label(worker.state == .waiting ? "Worker needs you" : "Worker building this",
+                Label(worker.action == LaunchAction.fixConflicts.rawValue
+                      ? (worker.state == .waiting ? "Fixer needs you" : "Resolving conflicts")
+                      : (worker.state == .waiting ? "Worker needs you" : "Worker building this"),
                       systemImage: worker.state == .waiting ? "exclamationmark.bubble.fill" : "gearshape.2.fill")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(worker.state == .waiting ? Theme.hazardYellow : Theme.safetyOrange)

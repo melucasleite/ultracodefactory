@@ -30,3 +30,11 @@ import Testing
         #expect(await reloaded.all().isEmpty)
     }
 }
+
+@Suite struct TmuxCaptureTests {
+    @Test func trailingBlankRowsAreDropped() {
+        let pane = "● Working\n  ⏺ Edit\n\u{1B}[0m   \n\n      \n\u{1B}[2m\u{1B}[0m\n"
+        #expect(Tmux.trimmingBlankRows(pane) == "● Working\n  ⏺ Edit")
+        #expect(Tmux.trimmingBlankRows("a\n\nb") == "a\n\nb")
+    }
+}

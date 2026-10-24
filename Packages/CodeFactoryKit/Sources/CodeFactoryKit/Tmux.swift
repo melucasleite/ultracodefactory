@@ -64,9 +64,17 @@ public struct Tmux: Sendable {
         var args = ["capture-pane", "-p", "-t", try Self.validate(session: name), "-S", "-\(history)"]
         if escapes { args.append("-e") }
         let result = try await ProcessRunner.run(binary, args)
-        var text = result.stdout
-        while text.hasSuffix("\n") { text.removeLast() }
-        return text
+        return Self.trimmingBlankRows(result.stdout)
+    }
+
+    /// Drops the empty rows below the last line of output: a pane is always
+    /// its full height, but the console should end where the text does.
+    static func trimmingBlankRows(_ text: String) -> String {
+        var lines = text.components(separatedBy: "\n")
+        while let last = lines.last, ANSIParser.strip(last).trimmingCharacters(in: .whitespaces).isEmpty {
+            lines.removeLast()
+        }
+        return lines.joined(separator: "\n")
     }
 
     public func send(_ key: NamedKey, to name: String) async throws {

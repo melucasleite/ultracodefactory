@@ -27,10 +27,11 @@ public enum GitWorktree {
         repository: URL,
         slug: String,
         root: URL,
+        branch requested: String? = nil,
         git: URL = URL(filePath: "/usr/bin/git")
     ) async throws -> Checkout {
         let name = try CardBoard.segment(slug)
-        let branch = "codefactory/\(name)"
+        let branch = requested ?? "codefactory/\(name)"
         let path = root.appending(path: name, directoryHint: .isDirectory)
 
         let inside = try? await ProcessRunner.run(git, ["-C", repository.path, "rev-parse", "--is-inside-work-tree"], check: false)
@@ -46,9 +47,17 @@ public enum GitWorktree {
         let branchExists = (try? await ProcessRunner.run(
             git, ["-C", repository.path, "rev-parse", "--verify", "--quiet", "refs/heads/\(branch)"], check: false
         ))?.status == 0
-        let args = branchExists
+        var args = branchExists
             ? ["-C", repository.path, "worktree", "add", path.path, branch]
             : ["-C", repository.path, "worktree", "add", "-b", branch, path.path, "HEAD"]
+        // An existing PR branch that only lives on the remote: track it.
+        if !branchExists, requested != nil {
+            _ = try? await ProcessRunner.run(git, ["-C", repository.path, "fetch", "--quiet", "origin", branch], check: false)
+            let remote = (try? await ProcessRunner.run(
+                git, ["-C", repository.path, "rev-parse", "--verify", "--quiet", "refs/remotes/origin/\(branch)"], check: false
+            ))?.status == 0
+            if remote { args = ["-C", repository.path, "worktree", "add", "-b", branch, path.path, "origin/\(branch)"] }
+        }
         try await ProcessRunner.run(git, args)
         return Checkout(path: Project.canonical(path), branch: branch)
     }

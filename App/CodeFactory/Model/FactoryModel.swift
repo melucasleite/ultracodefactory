@@ -23,6 +23,8 @@ final class FactoryModel {
     var awayReport: AwayReport?
     /// Auto mode per project id: keep N workers busy on ready cards.
     private(set) var autoModes: [String: AutoMode] = AutoMode.load()
+    /// Latest known status of each card's pull request, by `projectID/slug`.
+    private(set) var pullRequests: [String: PullRequestStatus] = [:]
 
     /// The selected project's id.
     var selectedProject: String? {
@@ -44,6 +46,8 @@ final class FactoryModel {
     @ObservationIgnored private var lastStates: [String: Job.State] = [:]
     @ObservationIgnored private var leftAt: Date?
     @ObservationIgnored private var scheduling = false
+    @ObservationIgnored private var reportedStuck: Set<String> = []
+    @ObservationIgnored private var lastPRCheck: [String: Date] = [:]
     @ObservationIgnored private var activityObservers: [NSObjectProtocol] = []
 
     var prefs: Preferences { Preferences() }
@@ -286,6 +290,7 @@ final class FactoryModel {
         case .session: return text
         case .plan: return BacklogPlanner.prompt(cardsFolder: project.cardsRoot, fromExistingCode: true)
         case .mapDependencies: return AgentPrompts.mapDependencies(cardsFolder: project.cardsRoot)
+        case .fixConflicts: return text
         }
     }
 
@@ -295,7 +300,7 @@ final class FactoryModel {
         case .create: prefs.createCommand
         case .work: prefs.workCommand
         case .triage: prefs.triageCommand
-        case .session, .plan, .mapDependencies: ""
+        case .session, .plan, .mapDependencies, .fixConflicts: ""
         }
     }
 
@@ -500,6 +505,8 @@ final class FactoryModel {
         scheduling = true
         defer { scheduling = false }
         for project in projects {
+            tidyStrays(in: project)
+            await watchPullRequests(in: project)
             let cards = project.board.listCards()
             await retireFinishedWorkers(in: project, cards: cards)
             let mode = autoMode(for: project.id)
@@ -509,11 +516,99 @@ final class FactoryModel {
             let asking = active.filter(\.isAskingForInput).count
             let slots = WorkScheduler.slotsToFill(limit: mode.workers, running: active.count - asking, waiting: asking)
             guard slots > 0 else { continue }
-            let claimed = Set(active.compactMap(\.card) + cards.filter { $0.status == .pickedUp }.map(\.slug))
+            let stuck = cards.filter { $0.status == .todo && WorkScheduler.isStuck($0.slug, jobs: jobs(for: project.id)) }
+            for card in stuck where reportedStuck.insert(project.id + "/" + card.slug).inserted {
+                notify(title: "\(project.name): Auto mode skipped a card",
+                       body: "“\(card.title)” finished twice without leaving To-Do. Check the card, then move it to retry.")
+            }
+            let claimed = Set(active.compactMap(\.card) + cards.filter { $0.status == .pickedUp }.map(\.slug) + stuck.map(\.slug))
             for card in WorkScheduler.ready(in: cards, excluding: claimed).prefix(slots) {
                 guard await startWorker(project: project, card: card) else { break }
             }
         }
+    }
+
+    // MARK: Pull requests
+
+    private func prKey(_ projectID: String, _ slug: String) -> String { projectID + "/" + slug }
+
+    func pullRequestStatus(for card: Card) -> PullRequestStatus? { pullRequests[prKey(card.project, card.slug)] }
+
+    /// Keeps the board in step with GitHub: merged PRs move their card to
+    /// Done (unblocking dependents); conflicting PRs get a fixer in Auto mode.
+    private func watchPullRequests(in project: Project) async {
+        guard let gh = prefs.gh else { return }
+        for card in project.board.listCards() where card.status != .done && card.status != .wontDo {
+            guard let url = card.pullRequest else { continue }
+            let key = prKey(project.id, card.slug)
+            let previous = pullRequests[key]
+            let interval: TimeInterval = (previous == nil || previous!.isUndecided) ? 20 : 90
+            if let last = lastPRCheck[key], Date.now.timeIntervalSince(last) < interval { continue }
+            lastPRCheck[key] = .now
+            guard let pr = try? await GitHub.status(of: url, gh: gh) else { continue }
+            pullRequests[key] = pr
+            if pr.isMerged {
+                do {
+                    try project.board.move(file: card.file, from: card.status, to: .done)
+                    pullRequests[key] = nil
+                    notify(title: "\(project.name): PR #\(pr.number) merged",
+                           body: "Moved “\(card.title)” to Done. Anything waiting on it can start now.")
+                    reload()
+                } catch {
+                    report(error)
+                }
+            } else if pr.hasConflicts, autoMode(for: project.id).enabled,
+                      worker(on: card) == nil, !WorkScheduler.isStuck(card.slug, jobs: jobs(for: project.id)) {
+                await startFixer(project: project, card: card, pullRequest: pr)
+            }
+        }
+    }
+
+    /// Starts an agent that resolves a pull request's conflicts on its branch.
+    @discardableResult
+    func fixConflicts(_ card: Card) async -> Job? {
+        guard let project = project(card.project), let pr = pullRequestStatus(for: card) else { return nil }
+        return await startFixer(project: project, card: card, pullRequest: pr)
+    }
+
+    @discardableResult
+    private func startFixer(project: Project, card: Card, pullRequest pr: PullRequestStatus) async -> Job? {
+        do {
+            let root = Preferences.supportDirectory.appending(path: "worktrees/\(project.id)", directoryHint: .isDirectory)
+            let checkout = try await GitWorktree.checkout(repository: project.repository, slug: card.slug, root: root, branch: pr.headRefName)
+            let prompt = AgentPrompts.fixConflicts(card: card.slug, pullRequest: pr.number, branch: checkout.branch,
+                                                   base: pr.baseRefName, cardsFolder: project.cardsRoot)
+            var job = try await AgentLauncher.startInteractive(
+                project: project, prompt: prompt, action: LaunchAction.fixConflicts.rawValue,
+                config: launchConfiguration, worktree: checkout
+            )
+            job.card = card.slug
+            job.prompt = "Fix conflicts in PR #\(pr.number): \(card.title)"
+            job.instructions = prompt
+            try await jobStore.add(job)
+            lastStates[job.id] = job.state
+            jobs = await jobStore.all()
+            return job
+        } catch {
+            report(error)
+            return nil
+        }
+    }
+
+    /// Merges notes agents left at a card's old path back into the card.
+    private func tidyStrays(in project: Project) {
+        guard let touched = try? project.board.tidyStrays(), !touched.isEmpty else { return }
+        let names = touched.map { $0.deletingPathExtension().lastPathComponent }
+        notify(title: "\(project.name): tidied the board",
+               body: "Merged a stray note back into \(names.joined(separator: ", ")).")
+    }
+
+    private func notify(title: String, body: String) {
+        guard prefs.notifications else { return }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
     }
 
     /// A worker is done once its card is in Waiting or Done and its agent is
@@ -522,6 +617,15 @@ final class FactoryModel {
         let bySlug = Dictionary(cards.map { ($0.slug, $0) }, uniquingKeysWith: { a, _ in a })
         for job in workers(for: project.id) where job.state == .waiting && job.wasBusy == true {
             guard let slug = job.card, let card = bySlug[slug], card.status == .waiting || card.status == .done else { continue }
+            if job.action == LaunchAction.fixConflicts.rawValue {
+                // A fixer is done only once GitHub (checked after it started) says the conflicts are gone.
+                let key = prKey(project.id, slug)
+                guard let checked = lastPRCheck[key], checked > job.startedAt.addingTimeInterval(30),
+                      let pr = pullRequests[key], !pr.hasConflicts else {
+                    lastPRCheck[key] = nil // ask GitHub again on the next pass
+                    continue
+                }
+            }
             try? await AgentLauncher.stop(job, tmux: prefs.tmux, executableName: "claude")
             try? await jobStore.update(job.id) {
                 $0.state = .completed

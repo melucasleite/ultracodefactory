@@ -38,6 +38,7 @@ struct Preferences {
 
     var claude: URL? { BinaryLocator.locate("claude", override: string(Pref.claudePath)) }
     var tmux: URL? { BinaryLocator.locate("tmux", override: string(Pref.tmuxPath)) }
+    var gh: URL? { BinaryLocator.locate("gh") }
 
     /// Where projects, jobs, logs and worktrees live. `UCF_SUPPORT_DIR`
     /// points a development run at a scratch folder instead.

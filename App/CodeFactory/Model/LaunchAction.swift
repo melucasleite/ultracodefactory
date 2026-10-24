@@ -15,6 +15,8 @@ enum LaunchAction: String, CaseIterable, Identifiable {
     case plan
     /// Headless: fill in `depends_on:` across the board so work can run in parallel.
     case mapDependencies
+    /// Interactive: resolve a pull request's merge conflicts in its worktree.
+    case fixConflicts
 
     var id: String { rawValue }
 
@@ -26,6 +28,7 @@ enum LaunchAction: String, CaseIterable, Identifiable {
         case .session: "Open Session"
         case .plan: "Plan Backlog"
         case .mapDependencies: "Map Dependencies"
+        case .fixConflicts: "Fix Conflicts"
         }
     }
 
@@ -37,6 +40,7 @@ enum LaunchAction: String, CaseIterable, Identifiable {
         case .session: "terminal"
         case .plan: "list.bullet.clipboard"
         case .mapDependencies: "point.3.connected.trianglepath.dotted"
+        case .fixConflicts: "arrow.triangle.merge"
         }
     }
 

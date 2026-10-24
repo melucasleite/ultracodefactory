@@ -9,7 +9,8 @@ public enum AgentPrompts {
         This project's work cards live in \(cards.path), one markdown file per card, in one folder per status: \
         proposed, todo, picked-up, waiting, done, wont-do. A card's folder is its status; when you move a card, \
         also update the `status:` and `updated:` (YYYY-MM-DD) lines in its frontmatter. `order:` is the project's build \
-        sequence (1 = first); keep it when moving cards. Never overwrite or delete a card. \
+        sequence (1 = first); keep it when moving cards. Never overwrite or delete a card. Cards move, so before you edit or append to a card, \
+        find where it is now (`ls <cards folder>/*/<name>.md`) and edit that file; never create a card file in a folder it isn't in. \
         Read PROJECT.md first if it exists.
         """
     }
@@ -74,6 +75,17 @@ public enum AgentPrompts {
         Map the dependencies between the cards so several agents can build them in parallel. Read every card in every status folder, then for each card in proposed, todo and picked-up set a single `depends_on:` frontmatter line listing the cards that must be finished (merged) before it can start, by file name without .md, for example `depends_on: [set-up-monorepo-skeleton]`, or `depends_on: []` if it can start right away.
 
         Rules: list only direct prerequisites, not everything upstream. Be strict: a dependency means the work truly can't start without the other card's code, not just that it comes later. Never create a cycle. Change only the `depends_on:` line of each card. Don't edit anything else, and don't create, move or delete cards. Finish with a short summary of how many cards are ready now and the longest chain.
+        """
+    }
+
+    /// Resolve a pull request's merge conflicts without changing its scope.
+    public static func fixConflicts(card: String, pullRequest: Int, branch: String, base: String, cardsFolder: URL) -> String {
+        """
+        \(board(cardsFolder))
+
+        Pull request #\(pullRequest) for the card \(card).md has merge conflicts with `\(base)`. You are in the PR's worktree on branch `\(branch)`.
+
+        Fetch the latest `\(base)` and merge it into this branch (`git fetch origin && git merge origin/\(base)`), resolve every conflict so both sides' intent is preserved, then build and run the tests. Don't change what the card is about or rewrite unrelated code. Commit the resolution, push the branch, and confirm with `gh pr view \(pullRequest) --json mergeable` that GitHub no longer reports conflicts. Leave the card in waiting. If a conflict is genuinely ambiguous, write the question at the bottom of the card and ask me rather than guessing.
         """
     }
 }
