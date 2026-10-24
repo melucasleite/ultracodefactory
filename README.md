@@ -22,6 +22,7 @@
 
 <p align="center">
   <a href="https://ultracodefactory.com"><img alt="Website: ultracodefactory.com" src="https://img.shields.io/badge/website-ultracodefactory.com-FF8500?logo=safari&logoColor=white"></a>
+  <a href="https://github.com/melucasleite/ultracodefactory/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/melucasleite/ultracodefactory/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="macOS 15+" src="https://img.shields.io/badge/macOS-15%2B-black?logo=apple">
   <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
   <img alt="SwiftUI" src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20Liquid%20Glass-0A84FF">
@@ -70,8 +71,8 @@ later and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```bash
 brew install tmux xcodegen
-git clone https://github.com/<you>/ultracode-factory.git
-cd ultracode-factory
+git clone https://github.com/melucasleite/ultracodefactory.git
+cd ultracodefactory
 make run
 ```
 
