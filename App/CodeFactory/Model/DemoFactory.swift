@@ -13,7 +13,7 @@ enum DemoFactory {
         try """
         # demo-factory
 
-        A scratch repository for trying Code Factory. Agents you launch from
+        A scratch repository for trying Ultra Code Factory. Agents you launch from
         the demo board run here, so nothing they do touches your real code.
 
         """.write(to: repo.appending(path: "README.md"), atomically: true, encoding: .utf8)

@@ -15,7 +15,7 @@ test: ## Run the CodeFactoryKit unit tests
 	cd Packages/CodeFactoryKit && swift test
 
 run: build ## Build and launch
-	open "build/DerivedData/Build/Products/Debug/Code Factory.app"
+	open "build/DerivedData/Build/Products/Debug/Ultra Code Factory.app"
 
 icon: ## Regenerate the app icon sizes from Scripts/icon-artwork.png
 	swift Scripts/mask-icon.swift Scripts/icon-artwork.png App/CodeFactory/Resources/Assets.xcassets/AppIcon.appiconset

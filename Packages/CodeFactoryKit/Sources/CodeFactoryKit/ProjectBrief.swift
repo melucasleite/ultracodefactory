@@ -63,7 +63,7 @@ public struct ProjectBrief: Codable, Hashable, Sendable {
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedNotes.isEmpty { out += "\n## Notes\n\n\(trimmedNotes)\n" }
 
-        out += "\n---\n\n_Created with Code Factory. Cards live in `.codefactory/`; agents read this brief first._\n"
+        out += "\n---\n\n_Created with Ultra Code Factory. Cards live in `.codefactory/`; agents read this brief first._\n"
         return out
     }
 }

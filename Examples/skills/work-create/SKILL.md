@@ -1,6 +1,6 @@
 ---
 name: work-create
-description: Turn a one-line idea into a Code Factory work card. Use when invoked as /work-create followed by an idea.
+description: Turn a one-line idea into a Ultra Code Factory work card. Use when invoked as /work-create followed by an idea.
 ---
 
 # Create a work card
@@ -8,7 +8,7 @@ description: Turn a one-line idea into a Code Factory work card. Use when invoke
 You were given a short idea after the command. Turn it into one well-formed
 card and stop.
 
-1. Find the board. Code Factory sets `CODE_FACTORY_CARDS` (the project's cards
+1. Find the board. Ultra Code Factory sets `CODE_FACTORY_CARDS` (the project's cards
    folder, usually `<repo>/.codefactory`) and `CODE_FACTORY_PROJECT` in your
    environment. Without them, use `./.codefactory`. New cards go in
    `$CODE_FACTORY_CARDS/todo/`.

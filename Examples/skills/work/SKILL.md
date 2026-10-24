@@ -1,6 +1,6 @@
 ---
 name: work
-description: Pick up the next Code Factory card, build it, and open a pull request. Use when invoked as /work, optionally followed by a card filename.
+description: Pick up the next Ultra Code Factory card, build it, and open a pull request. Use when invoked as /work, optionally followed by a card filename.
 ---
 
 # Work the next card

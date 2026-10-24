@@ -6,7 +6,7 @@ struct CodeFactoryApp: App {
     @State private var model = FactoryModel()
 
     var body: some Scene {
-        Window("Code Factory", id: "board") {
+        Window("Ultra Code Factory", id: "board") {
             ContentView()
                 .environment(model)
                 .frame(minWidth: 960, minHeight: 560)

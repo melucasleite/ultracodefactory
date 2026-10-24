@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/icon.png" width="144" height="144" alt="Code Factory app icon: a frosted terminal prompt with a glowing amber cursor">
+  <img src="docs/icon.png" width="144" height="144" alt="Ultra Code Factory app icon: a frosted terminal prompt with a glowing amber cursor">
 </p>
 
-<h1 align="center">Code Factory</h1>
+<h1 align="center">Ultra Code Factory</h1>
 
 <p align="center">
   <strong>Your backlog is the assembly line. Claude Code agents are the crew.</strong><br>
@@ -30,12 +30,12 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/board.jpg" alt="The Code Factory board: six glass columns over an orange and blue aurora, a card being fabricated by an agent, and the Factory Floor panel listing three live agents" width="100%">
+  <img src="docs/screenshots/board.jpg" alt="The Ultra Code Factory board: six glass columns over an orange and blue aurora, a card being fabricated by an agent, and the Factory Floor panel listing three live agents" width="100%">
 </p>
 
 ---
 
-Code Factory turns a folder of plain markdown files into a production line.
+Ultra Code Factory turns a folder of plain markdown files into a production line.
 Every card is a `.md` file and every column is a folder. Drag a card and the
 file moves. Describe an idea and an agent writes the card. Hit **Run Work**
 and an agent picks it up inside the project's repository. You watch its
@@ -47,7 +47,7 @@ just as well in Obsidian, your editor, `git` or `grep`.
 
 ## Core tenets
 
-What Code Factory believes, and builds for.
+What Ultra Code Factory believes, and builds for.
 
 1. **The spec is the product. Code is an implementation detail.** The
    brief, the cards and their acceptance criteria are what you own and care
@@ -159,7 +159,7 @@ my-app/                  ← your repository; agents run here
 - **Brand new:** a short wizard asks what you're building, which platforms
   (web, iOS, Android, Mac, Windows and Linux desktop, backend, CLI), the stack
   (pick from suggestions or let the agents choose), the features and the look.
-  Code Factory creates the folder, writes `PROJECT.md`, runs `git init` and has
+  Ultra Code Factory creates the folder, writes `PROJECT.md`, runs `git init` and has
   an agent plan a starter backlog for you to review.
 
 Prefer to keep cards elsewhere, such as in an Obsidian vault? Right-click a
@@ -183,7 +183,7 @@ updated: 2026-10-23
 - [ ] Fix the parser
 ```
 
-A card's folder is its real status. When you move a card, Code Factory
+A card's folder is its real status. When you move a card, Ultra Code Factory
 rewrites only the `status:` and `updated:` lines and leaves every other byte
 alone. A move never overwrites another card, and deleting a card sends it to
 the Trash.
@@ -230,7 +230,7 @@ skill always knows where its cards live.
 
 ## Built to be safe
 
-Code Factory launches AI agents that can change your code, so it is careful
+Ultra Code Factory launches AI agents that can change your code, so it is careful
 about what it hands them. Read [SECURITY.md](SECURITY.md) for the details.
 
 - 🛡️ **Conservative by default.** Agents start in _Accept file edits_ mode.
@@ -281,6 +281,6 @@ claude** at a small script that prints a `❯ 1. …` option list.
 
 [MIT](LICENSE) © 2026 Lucas Leite
 
-Code Factory is an independent open-source project. It is not affiliated
+Ultra Code Factory is an independent open-source project. It is not affiliated
 with or endorsed by Anthropic. "Claude" and "Claude Code" are trademarks of
 their owner.

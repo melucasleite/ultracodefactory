@@ -43,6 +43,6 @@ struct Preferences {
     var tmux: URL? { BinaryLocator.locate("tmux", override: string(Pref.tmuxPath)) }
 
     static var supportDirectory: URL {
-        URL.applicationSupportDirectory.appending(path: "Code Factory", directoryHint: .isDirectory)
+        URL.applicationSupportDirectory.appending(path: "Ultra Code Factory", directoryHint: .isDirectory)
     }
 }

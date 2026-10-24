@@ -1,8 +1,8 @@
 # Security
 
-## What Code Factory does on your machine
+## What Ultra Code Factory does on your machine
 
-Code Factory is a launcher and viewer for AI coding agents. It:
+Ultra Code Factory is a launcher and viewer for AI coding agents. It:
 
 - reads and writes markdown cards in each project's `.codefactory/` folder (or
   the cards folder you chose for it), and creates new project folders only
@@ -12,7 +12,7 @@ Code Factory is a launcher and viewer for AI coding agents. It:
 - reads those tmux sessions' screens and sends them the keystrokes you type
   or click;
 - stores a job ledger and agent logs in
-  `~/Library/Application Support/Code Factory/`, with logs readable only by
+  `~/Library/Application Support/Ultra Code Factory/`, with logs readable only by
   you (mode 0600).
 
 It makes **no network connections of its own**, collects no telemetry, and

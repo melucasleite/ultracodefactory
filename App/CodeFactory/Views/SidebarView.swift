@@ -43,7 +43,7 @@ struct SidebarView: View {
                     .help("Add an existing repository or start a brand-new project")
             }
         }
-        .confirmationDialog("Remove “\(removing?.name ?? "")” from Code Factory?",
+        .confirmationDialog("Remove “\(removing?.name ?? "")” from Ultra Code Factory?",
                             isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
             Button("Remove", role: .destructive) {
                 if let removing { model.removeProject(removing) }
@@ -80,7 +80,7 @@ struct SidebarView: View {
             }
         }
         Divider()
-        Button("Remove from Code Factory…", systemImage: "minus.circle", role: .destructive) { removing = project }
+        Button("Remove from Ultra Code Factory…", systemImage: "minus.circle", role: .destructive) { removing = project }
     }
 
     private var floorStatus: some View {

@@ -116,7 +116,7 @@ struct NewProjectWizard: View {
 
     private var existing: some View {
         VStack(alignment: .leading, spacing: 18) {
-            SheetHeader(title: "Existing project", subtitle: "Code Factory keeps its cards in the repo, next to your code.", symbol: "folder.fill")
+            SheetHeader(title: "Existing project", subtitle: "Ultra Code Factory keeps its cards in the repo, next to your code.", symbol: "folder.fill")
             HStack {
                 Image(systemName: existingRepo == nil ? "questionmark.folder" : "checkmark.circle.fill")
                     .foregroundStyle(existingRepo == nil ? Color.secondary : Color.green)

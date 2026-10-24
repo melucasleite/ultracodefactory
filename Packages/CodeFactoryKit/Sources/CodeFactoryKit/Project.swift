@@ -1,6 +1,6 @@
 import Foundation
 
-/// A repository you build with Code Factory. Its cards live in
+/// A repository you build with Ultra Code Factory. Its cards live in
 /// `<repository>/.codefactory/` unless `cardsOverride` points elsewhere
 /// (for example a folder in an Obsidian vault).
 public struct Project: Identifiable, Codable, Hashable, Sendable {

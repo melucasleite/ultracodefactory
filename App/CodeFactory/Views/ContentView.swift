@@ -50,7 +50,7 @@ struct ContentView: View {
         .background(FactoryBackdrop())
         .toolbar { toolbar }
         .searchable(text: $search, placement: .toolbar, prompt: "Filter cards")
-        .navigationTitle(model.selected?.name ?? "Code Factory")
+        .navigationTitle(model.selected?.name ?? "Ultra Code Factory")
         .navigationSubtitle(subtitle)
         .sheet(item: $openCard) { CardDetailView(card: $0) }
         .sheet(isPresented: Binding(get: { model.showingNewProject }, set: { model.showingNewProject = $0 })) {

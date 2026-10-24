@@ -21,7 +21,7 @@ struct MenuBarView: View {
             }
         }
         Divider()
-        Button("Open Code Factory") {
+        Button("Open Ultra Code Factory") {
             NSApp.activate()
             openWindow(id: "board")
         }

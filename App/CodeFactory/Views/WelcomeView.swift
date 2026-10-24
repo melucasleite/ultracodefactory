@@ -15,7 +15,7 @@ struct WelcomeView: View {
                     icon.offset(y: phase * -6)
                 } animation: { _ in .easeInOut(duration: 2.4) }
             VStack(spacing: 6) {
-                Text("Code Factory")
+                Text("Ultra Code Factory")
                     .font(.system(size: 44, weight: .heavy, design: .rounded))
                     .foregroundStyle(LinearGradient(colors: [.primary, Theme.safetyOrange], startPoint: .leading, endPoint: .trailing))
                 Text("Write the backlog. Grab a coffee. Come back to pull requests.")
