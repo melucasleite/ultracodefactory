@@ -20,3 +20,7 @@ Guidelines:
 
 By contributing, you agree that your contributions are licensed under the MIT
 License.
+
+To try agent flows end to end without touching your real projects, run the
+Debug app with `UCF_SUPPORT_DIR=/some/scratch/folder` (projects, jobs, logs and
+worktrees go there) and `-claudePath /path/to/fake-claude` as a launch argument.

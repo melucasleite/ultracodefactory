@@ -21,6 +21,8 @@ final class FactoryModel {
     var showingNewProject = false
     /// What happened while you were away; shown once when you come back.
     var awayReport: AwayReport?
+    /// Auto mode per project id: keep N workers busy on ready cards.
+    private(set) var autoModes: [String: AutoMode] = AutoMode.load()
 
     /// The selected project's id.
     var selectedProject: String? {
@@ -41,6 +43,7 @@ final class FactoryModel {
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var lastStates: [String: Job.State] = [:]
     @ObservationIgnored private var leftAt: Date?
+    @ObservationIgnored private var scheduling = false
     @ObservationIgnored private var activityObservers: [NSObjectProtocol] = []
 
     var prefs: Preferences { Preferences() }
@@ -54,6 +57,7 @@ final class FactoryModel {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refreshJobs()
+                await self?.runAutoMode()
                 let busy = self?.jobs.contains { $0.state.isActive } ?? false
                 try? await Task.sleep(for: .seconds(busy ? 1.5 : 6))
             }
@@ -281,6 +285,7 @@ final class FactoryModel {
         case .triage: return AgentPrompts.triage(cardsFolder: project.cardsRoot)
         case .session: return text
         case .plan: return BacklogPlanner.prompt(cardsFolder: project.cardsRoot, fromExistingCode: true)
+        case .mapDependencies: return AgentPrompts.mapDependencies(cardsFolder: project.cardsRoot)
         }
     }
 
@@ -290,7 +295,7 @@ final class FactoryModel {
         case .create: prefs.createCommand
         case .work: prefs.workCommand
         case .triage: prefs.triageCommand
-        case .session, .plan: ""
+        case .session, .plan, .mapDependencies: ""
         }
     }
 
@@ -302,6 +307,7 @@ final class FactoryModel {
         case .create: return text.isEmpty ? nil : "Create: \(text)"
         case .work: return text.isEmpty ? "Work the next card" : "Work \(text)"
         case .triage: return "Triage the backlog"
+        case .mapDependencies: return "Mapping card dependencies"
         default: return nil
         }
     }
@@ -454,6 +460,97 @@ final class FactoryModel {
         if updated != jobs { jobs = updated }
     }
 
+    // MARK: Auto mode
+
+    func autoMode(for projectID: String) -> AutoMode { autoModes[projectID] ?? AutoMode() }
+
+    func setAutoMode(_ mode: AutoMode, for projectID: String) {
+        autoModes[projectID] = mode
+        AutoMode.save(autoModes)
+        if mode.enabled { requestNotificationPermissionIfNeeded() }
+        Task { await runAutoMode() }
+    }
+
+    /// Active parallel workers for a project.
+    func workers(for projectID: String) -> [Job] {
+        jobs(for: projectID).filter { $0.card != nil && $0.state.isActive }
+    }
+
+    /// The cards a card is waiting on, for the blocked badge.
+    func blockers(for card: Card) -> [Card] {
+        guard card.status == .proposed || card.status == .todo else { return [] }
+        return WorkScheduler.blockers(of: card, in: cards)
+    }
+
+    func worker(on card: Card) -> Job? {
+        workers(for: card.project).first { $0.card == card.slug }
+    }
+
+    /// One scheduling pass: retire workers whose card reached review, then
+    /// fill free slots with ready cards in build order.
+    func runAutoMode() async {
+        guard !scheduling else { return }
+        scheduling = true
+        defer { scheduling = false }
+        for project in projects {
+            let cards = project.board.listCards()
+            await retireFinishedWorkers(in: project, cards: cards)
+            let mode = autoMode(for: project.id)
+            guard mode.enabled else { continue }
+            let active = workers(for: project.id)
+            // A worker that hasn't started working yet still holds its slot.
+            let asking = active.filter(\.isAskingForInput).count
+            let slots = WorkScheduler.slotsToFill(limit: mode.workers, running: active.count - asking, waiting: asking)
+            guard slots > 0 else { continue }
+            let claimed = Set(active.compactMap(\.card) + cards.filter { $0.status == .pickedUp }.map(\.slug))
+            for card in WorkScheduler.ready(in: cards, excluding: claimed).prefix(slots) {
+                guard await startWorker(project: project, card: card) else { break }
+            }
+        }
+    }
+
+    /// A worker is done once its card is in Waiting or Done and its agent is
+    /// idle: close its session so the slot frees up. The branch and PR stay.
+    private func retireFinishedWorkers(in project: Project, cards: [Card]) async {
+        let bySlug = Dictionary(cards.map { ($0.slug, $0) }, uniquingKeysWith: { a, _ in a })
+        for job in workers(for: project.id) where job.state == .waiting && job.wasBusy == true {
+            guard let slug = job.card, let card = bySlug[slug], card.status == .waiting || card.status == .done else { continue }
+            try? await AgentLauncher.stop(job, tmux: prefs.tmux, executableName: "claude")
+            try? await jobStore.update(job.id) {
+                $0.state = .completed
+                $0.finishedAt = .now
+            }
+        }
+    }
+
+    @discardableResult
+    private func startWorker(project: Project, card: Card) async -> Bool {
+        do {
+            let root = Preferences.supportDirectory.appending(path: "worktrees/\(project.id)", directoryHint: .isDirectory)
+            let checkout = try await GitWorktree.checkout(repository: project.repository, slug: card.slug, root: root)
+            let prompt = AgentPrompts.worker(card: card.slug, branch: checkout.branch, cardsFolder: project.cardsRoot)
+            var job = try await AgentLauncher.startInteractive(
+                project: project, prompt: prompt, action: LaunchAction.work.rawValue,
+                config: launchConfiguration, worktree: checkout
+            )
+            job.card = card.slug
+            job.prompt = card.order.map { "#\($0) \(card.title)" } ?? card.title
+            job.instructions = prompt
+            try await jobStore.add(job)
+            lastStates[job.id] = job.state
+            jobs = await jobStore.all()
+            return true
+        } catch {
+            // Can't parallelize this project (e.g. not a git repo yet): stop trying.
+            var mode = autoMode(for: project.id)
+            mode.enabled = false
+            autoModes[project.id] = mode
+            AutoMode.save(autoModes)
+            report(error)
+            return false
+        }
+    }
+
     // MARK: While you were away
 
     private func observeAppActivity() {
@@ -546,5 +643,23 @@ struct AwayReport: Equatable {
         if waiting > 0, pullRequests > 0 { out.append("\(waiting) waiting for you") }
         if failed > 0 { out.append("\(failed) failed") }
         return out
+    }
+}
+
+/// Per-project Auto mode: how many workers to keep busy.
+struct AutoMode: Codable, Equatable {
+    var enabled = false
+    var workers = 3
+
+    static let range = 1...6
+    private static let key = "autoModes"
+
+    static func load() -> [String: AutoMode] {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return [:] }
+        return (try? JSONDecoder().decode([String: AutoMode].self, from: data)) ?? [:]
+    }
+
+    static func save(_ modes: [String: AutoMode]) {
+        UserDefaults.standard.set(try? JSONEncoder().encode(modes), forKey: key)
     }
 }

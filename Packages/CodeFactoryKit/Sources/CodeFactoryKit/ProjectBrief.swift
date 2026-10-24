@@ -100,6 +100,7 @@ public enum BacklogPlanner {
         kind: feature | bug | chore | refactor | spike | docs
         priority: high | medium | low
         order: 1
+        depends_on: [file-name-of-a-prerequisite-card]
         created: \(day)
         updated: \(day)
         ---
@@ -112,6 +113,7 @@ public enum BacklogPlanner {
 
         - [ ] Observable, testable outcome
 
+        In `depends_on:` list only the cards that must be finished (merged) before this one can start, by file name without .md, or `[]` if none. Keep it minimal and direct: several agents will build ready cards in parallel, so false dependencies slow everything down, and cycles are not allowed. \
         Number the cards with `order:` 1, 2, 3… in the exact sequence they should be built, so every card comes after the cards it depends on. If cards already exist on the board, continue after the highest existing `order:`. Order the work so foundations come first (project setup, tooling, CI, core data model), then the main features, then polish. Keep every card small enough to ship as a single pull request. When a decision is open, such as a stack choice the brief leaves to you, write it as a spike card. Finish by listing the cards you wrote.
         """
     }

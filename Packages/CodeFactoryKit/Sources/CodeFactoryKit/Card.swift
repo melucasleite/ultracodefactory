@@ -12,6 +12,8 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
     public var priority: String?
     /// Execution order within the column (1 = first). Cards without one sort last.
     public var order: Int?
+    /// Cards (by file name, without `.md`) that must be Done before this one can start.
+    public var dependsOn: [String] = []
     /// The most recent pull request linked from the card body, if any.
     public var pullRequest: URL?
 
@@ -28,6 +30,7 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
         updated: String? = nil,
         priority: String? = nil,
         order: Int? = nil,
+        dependsOn: [String] = [],
         pullRequest: URL? = nil
     ) {
         self.project = project
@@ -39,7 +42,21 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
         self.updated = updated
         self.priority = priority
         self.order = order
+        self.dependsOn = dependsOn
         self.pullRequest = pullRequest
+    }
+
+    /// The card's file name without `.md`, which is how other cards refer to it.
+    public var slug: String { file.hasSuffix(".md") ? String(file.dropLast(3)) : file }
+
+    /// Parses `depends_on: a, b` or `depends_on: [a, b]`; tolerates `.md` and quotes.
+    public static func parseDependencies(_ raw: String?) -> [String] {
+        guard let raw else { return [] }
+        return raw.trimmingCharacters(in: CharacterSet(charactersIn: "[] "))
+            .split(whereSeparator: { $0 == "," || $0 == " " })
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "\"' ")) }
+            .map { $0.hasSuffix(".md") ? String($0.dropLast(3)) : $0 }
+            .filter { !$0.isEmpty }
     }
 
     /// Execution order first; unordered cards after, newest first.

@@ -201,6 +201,22 @@ struct CardTile: View {
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
+            if let worker = model.worker(on: card) {
+                Label(worker.state == .waiting ? "Worker needs you" : "Worker building this",
+                      systemImage: worker.state == .waiting ? "exclamationmark.bubble.fill" : "gearshape.2.fill")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(worker.state == .waiting ? Theme.hazardYellow : Theme.safetyOrange)
+                    .symbolEffect(.rotate, options: .repeat(.continuous), isActive: worker.state == .running)
+                    .lineLimit(1)
+            } else if case let blockers = model.blockers(for: card), !blockers.isEmpty {
+                Label("after " + blockers.prefix(4).map { $0.order.map { "#\($0)" } ?? $0.title }.joined(separator: " ")
+                      + (blockers.count > 4 ? " +\(blockers.count - 4)" : ""),
+                      systemImage: "lock.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help("Waiting on: " + blockers.map(\.title).joined(separator: ", "))
+            }
             if let pr = card.pullRequest, let number = card.pullRequestNumber {
                 Button {
                     Finder.open(pr)

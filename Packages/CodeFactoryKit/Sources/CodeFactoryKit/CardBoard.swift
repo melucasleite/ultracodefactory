@@ -82,6 +82,7 @@ public struct CardBoard: Sendable {
                     updated: fm.fields["updated"].nonEmpty,
                     priority: fm.fields["priority"].nonEmpty,
                     order: fm.fields["order"].flatMap { Int($0) },
+                    dependsOn: Card.parseDependencies(fm.fields["depends_on"] ?? fm.fields["blocked_by"]),
                     pullRequest: fm.fields["pr"].flatMap(URL.init(string:)) ?? Card.pullRequestURL(in: fm.body)
                 ))
             }

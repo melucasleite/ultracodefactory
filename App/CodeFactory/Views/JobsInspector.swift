@@ -14,6 +14,12 @@ struct JobsInspector: View {
                     .font(.system(.headline, design: .rounded))
                     .foregroundStyle(Theme.safetyOrange)
                 Spacer()
+                if let id = model.selectedProject, model.autoMode(for: id).enabled {
+                    Label("Auto \(model.workers(for: id).count)/\(model.autoMode(for: id).workers)", systemImage: "bolt.fill")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .glassCapsule(tint: Theme.safetyOrange)
+                }
                 if !active.isEmpty {
                     Text("\(active.count) live")
                         .font(.caption.weight(.bold))

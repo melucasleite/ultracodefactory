@@ -141,18 +141,19 @@ public enum AgentLauncher {
         project: Project,
         prompt: String,
         action: String,
-        config: LaunchConfiguration
+        config: LaunchConfiguration,
+        worktree: GitWorktree.Checkout? = nil
     ) async throws -> Job {
         guard let claude = config.claude else { throw LaunchError.missingBinary("claude") }
         guard let tmuxURL = config.tmux else { throw LaunchError.missingBinary("tmux") }
-        let repo = try config.repository(for: project)
+        let repo = try worktree?.path ?? config.repository(for: project)
         let id = Job.newID()
         let session = "codefactory-\(id)"
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
 
         var command = [claude.path]
         if !trimmed.isEmpty { command.append(trimmed) }
-        command += config.agentArguments + addDirArguments(project)
+        command += config.agentArguments + addDirArguments(project, workingIn: repo)
 
         try await Tmux(binary: tmuxURL).newSession(
             name: session,
@@ -161,7 +162,7 @@ public enum AgentLauncher {
             environment: config.environment(for: project)
                 .merging(["PATH": ProcessRunner.environment["PATH"] ?? ""]) { _, new in new }
         )
-        return Job(
+        var job = Job(
             id: id,
             project: project.name,
             projectID: project.id,
@@ -170,11 +171,19 @@ public enum AgentLauncher {
             mode: .interactive,
             session: session
         )
+        job.worktree = worktree?.path.path
+        job.branch = worktree?.branch
+        return job
     }
 
     /// `--add-dir` for every folder the project lets agents use beyond the repo.
-    static func addDirArguments(_ project: Project) -> [String] {
-        project.extraDirectories.flatMap { ["--add-dir", $0.path] }
+    static func addDirArguments(_ project: Project, workingIn directory: URL? = nil) -> [String] {
+        var dirs = project.extraDirectories
+        // A worker in its own worktree still updates the project's shared board.
+        if let directory, directory != project.repository, !dirs.contains(project.cardsRoot) {
+            dirs.insert(project.cardsRoot, at: 0)
+        }
+        return dirs.flatMap { ["--add-dir", $0.path] }
     }
 
     /// Stops a job: kills its tmux session, or sends SIGTERM to a headless

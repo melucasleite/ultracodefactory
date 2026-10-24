@@ -60,9 +60,14 @@ public actor JobStore {
                     continue
                 }
                 let pane = (try? await tmux.capture(session, history: 0, escapes: false)) ?? ""
-                let next: Job.State = pane.contains(Self.busyMarker) ? .running : .waiting
+                let busy = pane.contains(Self.busyMarker)
+                let next: Job.State = busy ? .running : .waiting
                 if next != job.state {
                     jobs[index].state = next
+                    changed = true
+                }
+                if busy, job.wasBusy != true {
+                    jobs[index].wasBusy = true
                     changed = true
                 }
             case .headless:

@@ -39,6 +39,18 @@ public struct Job: Identifiable, Codable, Hashable, Sendable {
     public var exitCode: Int32?
     /// The full first message the agent received, so the job can be re-run.
     public var instructions: String?
+    /// Set once an interactive agent has been seen working. Until then an
+    /// idle pane means it's still starting up, not waiting on you.
+    public var wasBusy: Bool?
+
+    /// Waiting on a human, as opposed to still starting up.
+    public var isAskingForInput: Bool { state == .waiting && wasBusy == true }
+
+    /// The card this job is working on (its slug), for workers.
+    public var card: String?
+    /// The worker's own checkout and branch, when it runs in a git worktree.
+    public var worktree: String?
+    public var branch: String?
     /// What a headless run reported when it finished.
     public var summary: RunSummary?
 

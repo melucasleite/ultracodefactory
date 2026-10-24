@@ -66,3 +66,12 @@ import Testing
         #expect(projects.first?.allowedDirectories == [])
     }
 }
+
+@Suite struct WorkerArgumentTests {
+    @Test func workersInWorktreesCanReachTheSharedBoard() {
+        let project = Project(repository: URL(filePath: "/tmp/nope-app"))
+        let args = AgentLauncher.addDirArguments(project, workingIn: URL(filePath: "/tmp/nope-wt/relay"))
+        #expect(args == ["--add-dir", "/tmp/nope-app/.codefactory"])
+        #expect(AgentLauncher.addDirArguments(project, workingIn: project.repository).isEmpty)
+    }
+}

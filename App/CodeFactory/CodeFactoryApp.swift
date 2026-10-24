@@ -53,6 +53,10 @@ struct FactoryCommands: Commands {
                 .keyboardShortcut("t", modifiers: [.command, .shift])
             Button("Open Session in Repository") { actions?.launch(.session) }
             Button("Plan Backlog") { actions?.launch(.plan) }
+            Button("Map Dependencies") { actions?.launch(.mapDependencies) }
+            Divider()
+            Button("Toggle Auto Mode") { actions?.toggleAuto() }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
                 .keyboardShortcut("o", modifiers: [.command, .shift])
             Divider()
             Button("Show Factory Floor") { actions?.toggleJobs() }

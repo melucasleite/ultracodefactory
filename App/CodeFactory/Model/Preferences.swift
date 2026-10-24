@@ -39,7 +39,12 @@ struct Preferences {
     var claude: URL? { BinaryLocator.locate("claude", override: string(Pref.claudePath)) }
     var tmux: URL? { BinaryLocator.locate("tmux", override: string(Pref.tmuxPath)) }
 
+    /// Where projects, jobs, logs and worktrees live. `UCF_SUPPORT_DIR`
+    /// points a development run at a scratch folder instead.
     static var supportDirectory: URL {
-        URL.applicationSupportDirectory.appending(path: "Ultra Code Factory", directoryHint: .isDirectory)
+        if let override = ProcessInfo.processInfo.environment["UCF_SUPPORT_DIR"], !override.isEmpty {
+            return URL(filePath: override, directoryHint: .isDirectory)
+        }
+        return URL.applicationSupportDirectory.appending(path: "Ultra Code Factory", directoryHint: .isDirectory)
     }
 }

@@ -54,4 +54,26 @@ public enum AgentPrompts {
         split it, or won't do. Apply my answer by moving or editing the card, then go to the next one. Finish with a short summary.
         """
     }
+
+    /// One of several parallel workers, each in its own worktree on its own card.
+    public static func worker(card: String, branch: String, cardsFolder: URL) -> String {
+        """
+        \(board(cardsFolder))
+
+        You are one of several Ultra Code Factory workers running in parallel. You are in your own git worktree on branch `\(branch)`, so your changes can't collide with other workers. Work only on the card \(card).md: do not pick up, move or edit any other card.
+
+        First move \(card).md to picked-up. Implement it with tests on this branch and tick its acceptance criteria as you go. When it's done, commit, push the branch and open a pull request (use `gh pr create` if the GitHub CLI is available). Add the PR URL to the bottom of the card and move it to waiting, where it waits for review. If you need a decision before you can finish, write the question at the bottom of the card, leave it in picked-up and ask me. Ask before anything destructive or irreversible.
+        """
+    }
+
+    /// Fill in `depends_on:` across an existing board.
+    public static func mapDependencies(cardsFolder: URL) -> String {
+        """
+        \(board(cardsFolder))
+
+        Map the dependencies between the cards so several agents can build them in parallel. Read every card in every status folder, then for each card in proposed, todo and picked-up set a single `depends_on:` frontmatter line listing the cards that must be finished (merged) before it can start, by file name without .md, for example `depends_on: [set-up-monorepo-skeleton]`, or `depends_on: []` if it can start right away.
+
+        Rules: list only direct prerequisites, not everything upstream. Be strict: a dependency means the work truly can't start without the other card's code, not just that it comes later. Never create a cycle. Change only the `depends_on:` line of each card. Don't edit anything else, and don't create, move or delete cards. Finish with a short summary of how many cards are ready now and the longest chain.
+        """
+    }
 }

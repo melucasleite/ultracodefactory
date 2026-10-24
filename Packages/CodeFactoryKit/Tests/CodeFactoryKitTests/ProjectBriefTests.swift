@@ -100,3 +100,18 @@ import Testing
         #expect(AgentPrompts.triage(cardsFolder: cards).contains("AskUserQuestion"))
     }
 }
+
+@Suite struct ParallelPromptTests {
+    let cards = URL(filePath: "/tmp/app/.codefactory")
+
+    @Test func workerOwnsOneCardOnItsBranch() {
+        let p = AgentPrompts.worker(card: "build-relay", branch: "codefactory/build-relay", cardsFolder: cards)
+        #expect(p.contains("codefactory/build-relay"))
+        #expect(p.contains("Work only on the card build-relay.md"))
+    }
+
+    @Test func plannerAndMapperTalkAboutDependencies() {
+        #expect(BacklogPlanner.prompt(cardsFolder: cards, fromExistingCode: false).contains("depends_on:"))
+        #expect(AgentPrompts.mapDependencies(cardsFolder: cards).contains("Never create a cycle"))
+    }
+}

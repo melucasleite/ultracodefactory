@@ -13,6 +13,8 @@ enum LaunchAction: String, CaseIterable, Identifiable {
     case session
     /// Headless: propose a starter backlog with the built-in planner prompt.
     case plan
+    /// Headless: fill in `depends_on:` across the board so work can run in parallel.
+    case mapDependencies
 
     var id: String { rawValue }
 
@@ -23,6 +25,7 @@ enum LaunchAction: String, CaseIterable, Identifiable {
         case .triage: "Triage"
         case .session: "Open Session"
         case .plan: "Plan Backlog"
+        case .mapDependencies: "Map Dependencies"
         }
     }
 
@@ -33,10 +36,11 @@ enum LaunchAction: String, CaseIterable, Identifiable {
         case .triage: "scalemass"
         case .session: "terminal"
         case .plan: "list.bullet.clipboard"
+        case .mapDependencies: "point.3.connected.trianglepath.dotted"
         }
     }
 
-    var isInteractive: Bool { self != .create && self != .plan }
+    var isInteractive: Bool { self != .create && self != .plan && self != .mapDependencies }
 
     /// The column where this action's not-yet-written cards appear.
     var fabricatesInto: CardStatus? {

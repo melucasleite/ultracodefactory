@@ -67,6 +67,12 @@ struct ContentView: View {
             newCard: { sheet = .newCard },
             launch: { action in launch(action) },
             toggleJobs: { showJobs.toggle() },
+            toggleAuto: {
+                guard let id = model.selectedProject else { return }
+                var mode = model.autoMode(for: id)
+                mode.enabled.toggle()
+                model.setAutoMode(mode, for: id)
+            },
             enabled: model.hasProjects && model.selectedProject != nil
         ))
     }
@@ -150,13 +156,12 @@ struct ContentView: View {
                 .help("Write a card yourself (⇧⌘N)")
                 .disabled(!enabled)
 
-            ControlGroup {
-                Button("Triage", systemImage: LaunchAction.triage.symbol) { launch(.triage) }
-                    .help("Walk the backlog with an agent that asks you questions")
-                Button("Run Work", systemImage: LaunchAction.work.symbol) { launch(.work) }
-                    .help("Start an agent on the next card")
-            }
-            .disabled(!enabled)
+            Button("Triage", systemImage: LaunchAction.triage.symbol) { launch(.triage) }
+                .help("Walk the backlog with an agent that asks you questions")
+                .disabled(!enabled)
+
+            RunWorkMenu { launch($0) }
+                .disabled(!enabled)
 
             Button {
                 showJobs.toggle()
@@ -189,6 +194,7 @@ struct BoardActions {
     var newCard: () -> Void
     var launch: (LaunchAction) -> Void
     var toggleJobs: () -> Void
+    var toggleAuto: () -> Void
     var enabled: Bool
 }
 
@@ -233,5 +239,57 @@ private struct AwayBanner: View {
         .padding(12)
         .shadow(color: Theme.safetyOrange.opacity(0.25), radius: 20)
         .transition(.move(edge: .top).combined(with: .opacity))
+    }
+}
+
+/// Run Work as a split button: click to work the next card, or open the
+/// menu for Auto mode, its worker count, and dependency mapping.
+private struct RunWorkMenu: View {
+    @Environment(FactoryModel.self) private var model
+    var launch: (LaunchAction) -> Void
+
+    var body: some View {
+        let id = model.selectedProject ?? ""
+        let mode = model.autoMode(for: id)
+        let busy = model.workers(for: id)
+        Menu {
+            Toggle(isOn: Binding(
+                get: { mode.enabled },
+                set: { var m = mode; m.enabled = $0; model.setAutoMode(m, for: id) }
+            )) {
+                Label("Auto Mode", systemImage: "bolt.fill")
+            }
+            Picker("Parallel Workers", selection: Binding(
+                get: { mode.workers },
+                set: { var m = mode; m.workers = $0; model.setAutoMode(m, for: id) }
+            )) {
+                ForEach(Array(AutoMode.range), id: \.self) { n in
+                    Text("\(n) worker\(n == 1 ? "" : "s")").tag(n)
+                }
+            }
+            Text("Each worker builds a ready card on its own branch and opens a PR. Cards wait until what they depend on is Done.")
+            Divider()
+            Button("Run Next Card", systemImage: LaunchAction.work.symbol) { launch(.work) }
+            Button("Map Dependencies", systemImage: LaunchAction.mapDependencies.symbol) { launch(.mapDependencies) }
+        } label: {
+            if mode.enabled {
+                Label("Auto · \(busy.count)/\(mode.workers)", systemImage: "bolt.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(Theme.safetyOrange)
+            } else {
+                Label("Run Work", systemImage: LaunchAction.work.symbol)
+            }
+        } primaryAction: {
+            if mode.enabled {
+                var m = mode
+                m.enabled = false
+                model.setAutoMode(m, for: id)
+            } else {
+                launch(.work)
+            }
+        }
+        .help(mode.enabled
+              ? "Auto mode is on: \(busy.count) of \(mode.workers) workers busy. Click to pause; the menu has more."
+              : "Click to work the next card. Open the menu for Auto mode and parallel workers.")
     }
 }

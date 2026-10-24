@@ -13,6 +13,7 @@ struct SidebarView: View {
                 ForEach(model.projects) { project in
                     ProjectRow(
                         project: project,
+                        auto: model.autoMode(for: project.id).enabled,
                         open: model.openCounts[project.id] ?? 0,
                         jobs: model.jobs(for: project.id).filter(\.state.isActive)
                     )
@@ -117,6 +118,7 @@ struct SidebarView: View {
 
 private struct ProjectRow: View {
     let project: Project
+    var auto = false
     let open: Int
     let jobs: [Job]
 
@@ -125,6 +127,9 @@ private struct ProjectRow: View {
             Label(project.name, systemImage: "shippingbox")
                 .help(project.repository.path)
             Spacer()
+            if auto {
+                Image(systemName: "bolt.fill").foregroundStyle(Theme.safetyOrange).help("Auto mode is on")
+            }
             if jobs.contains(where: { $0.state == .waiting }) {
                 Image(systemName: "exclamationmark.bubble.fill").foregroundStyle(Theme.hazardYellow)
                     .help("An agent is waiting for your input")
