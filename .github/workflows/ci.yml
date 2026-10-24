@@ -10,7 +10,12 @@ permissions:
 
 jobs:
   build-and-test:
-    runs-on: macos-15
+    # macos-15 (Xcode 16) builds the material fallbacks; macos-26 builds Liquid Glass.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:

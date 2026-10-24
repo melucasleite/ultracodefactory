@@ -4,54 +4,89 @@ import SwiftUI
 // Liquid Glass; on macOS 15 it falls back to vibrant materials with a
 // hairline rim so the layout and hierarchy stay the same.
 
+// Liquid Glass needs the macOS 26 SDK (Swift 6.2+). Older toolchains, such
+// as Xcode 16, compile only the fallbacks.
+
 extension View {
     /// A floating glass surface.
     @ViewBuilder
     func glassPanel(cornerRadius: CGFloat = 16, tint: Color? = nil, interactive: Bool = false) -> some View {
+        #if compiler(>=6.2)
         if #available(macOS 26, *) {
             glassEffect(GlassStyle.make(tint: tint, interactive: interactive), in: .rect(cornerRadius: cornerRadius))
         } else {
-            background {
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(.ultraThinMaterial)
-                    .overlay(RoundedRectangle(cornerRadius: cornerRadius).fill((tint ?? .clear).opacity(0.12)))
-            }
-            .overlay(GlassRim(cornerRadius: cornerRadius))
+            materialPanel(cornerRadius: cornerRadius, tint: tint)
         }
+        #else
+        materialPanel(cornerRadius: cornerRadius, tint: tint)
+        #endif
     }
 
     /// A glass capsule, for chips and pills.
     @ViewBuilder
     func glassCapsule(tint: Color? = nil, interactive: Bool = false) -> some View {
+        #if compiler(>=6.2)
         if #available(macOS 26, *) {
             glassEffect(GlassStyle.make(tint: tint, interactive: interactive), in: .capsule)
         } else {
-            background(Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill((tint ?? .clear).opacity(0.15))))
-                .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
+            materialCapsule(tint: tint)
         }
+        #else
+        materialCapsule(tint: tint)
+        #endif
     }
 
     /// Lets neighbouring glass shapes blend and morph into each other.
     @ViewBuilder
     func glassGroup(spacing: CGFloat = 12) -> some View {
+        #if compiler(>=6.2)
         if #available(macOS 26, *) {
             GlassEffectContainer(spacing: spacing) { self }
         } else {
             self
         }
+        #else
+        self
+        #endif
     }
 
     /// A glass button; `prominent` fills it with the tint.
     @ViewBuilder
     func glassButton(prominent: Bool = false) -> some View {
+        #if compiler(>=6.2)
         if #available(macOS 26, *) {
             if prominent { buttonStyle(.glassProminent) } else { buttonStyle(.glass) }
         } else {
-            if prominent { buttonStyle(.borderedProminent) } else { buttonStyle(.bordered) }
+            materialButton(prominent: prominent)
         }
+        #else
+        materialButton(prominent: prominent)
+        #endif
+    }
+
+    // MARK: Pre-Liquid Glass fallbacks
+
+    private func materialPanel(cornerRadius: CGFloat, tint: Color?) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(.ultraThinMaterial)
+                .overlay(RoundedRectangle(cornerRadius: cornerRadius).fill((tint ?? .clear).opacity(0.12)))
+        }
+        .overlay(GlassRim(cornerRadius: cornerRadius))
+    }
+
+    private func materialCapsule(tint: Color?) -> some View {
+        background(Capsule().fill(.ultraThinMaterial).overlay(Capsule().fill((tint ?? .clear).opacity(0.15))))
+            .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
+    }
+
+    @ViewBuilder
+    private func materialButton(prominent: Bool) -> some View {
+        if prominent { buttonStyle(.borderedProminent) } else { buttonStyle(.bordered) }
     }
 }
 
+#if compiler(>=6.2)
 @available(macOS 26, *)
 private enum GlassStyle {
     static func make(tint: Color?, interactive: Bool) -> Glass {
@@ -61,6 +96,7 @@ private enum GlassStyle {
         return glass
     }
 }
+#endif
 
 /// The light-catching edge of a pane of glass (pre-macOS 26 fallback).
 private struct GlassRim: View {
