@@ -182,6 +182,7 @@ status: todo
 kind: bug # feature | bug | chore | refactor | spike | docs | anything
 id: 42 # optional, shown as #42
 priority: high # optional
+order: 3 # build sequence: columns sort by it; drag a card onto another to reorder
 updated: 2026-10-23
 ---
 

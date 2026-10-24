@@ -191,6 +191,22 @@ final class FactoryModel {
         reload()
     }
 
+    /// Drops `ref` just before `target` in the build order, moving it to
+    /// the target's column first if it came from another one.
+    func place(_ ref: CardReference, before target: Card) {
+        guard ref.project == target.project, !(ref.file == target.file && ref.status == target.status) else { return }
+        do {
+            let board = try board(ref.project)
+            if ref.status != target.status {
+                try board.move(file: ref.file, from: ref.status, to: target.status)
+            }
+            try board.reorder(file: ref.file, in: target.status, before: (target.file, target.status))
+        } catch {
+            report(error)
+        }
+        reload()
+    }
+
     func trash(_ card: Card) {
         do {
             try board(card.project).trash(status: card.status, file: card.file)

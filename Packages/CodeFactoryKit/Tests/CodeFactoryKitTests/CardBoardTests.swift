@@ -123,3 +123,42 @@ import Testing
         #expect(board.listCards().first?.pullRequestNumber == "42")
     }
 }
+
+@Suite struct ExecutionOrderTests {
+    let board: CardBoard
+
+    init() throws {
+        board = CardBoard(root: FileManager.default.temporaryDirectory.appending(path: "cf-order-\(UUID().uuidString)"), project: "p")
+        try board.prepare()
+        for (title, order) in [("Third", "3"), ("First", "1"), ("Second", "2")] {
+            let file = try board.create(title: title, status: .todo)
+            let content = try board.read(status: .todo, file: file)
+            try board.write(status: .todo, file: file, content: Frontmatter.updating(content, with: ["order": order]))
+        }
+        try board.create(title: "Unordered", status: .todo)
+    }
+
+    @Test func sortsByOrderThenUnorderedLast() {
+        #expect(board.listCards().map(\.title) == ["First", "Second", "Third", "Unordered"])
+    }
+
+    @Test func reorderMovesAndRenumbers() throws {
+        try board.reorder(file: "third.md", in: .todo, before: ("first.md", .todo))
+        #expect(board.listCards().map(\.title) == ["Third", "First", "Second", "Unordered"])
+        #expect(board.listCards().map(\.order) == [1, 2, 3, 4])
+        try board.reorder(file: "third.md", in: .todo, before: nil)
+        #expect(board.listCards().map(\.title) == ["First", "Second", "Unordered", "Third"])
+    }
+
+    @Test func orderIsProjectWideAcrossColumns() throws {
+        try board.move(file: "second.md", from: .todo, to: .pickedUp)
+        // Moving keeps its number, so the plan's sequence survives.
+        #expect(board.listCards().first { $0.file == "second.md" }?.order == 2)
+        try board.reorder(file: "unordered.md", in: .todo, before: ("first.md", .todo))
+        let byFile = Dictionary(uniqueKeysWithValues: board.listCards().map { ($0.file, $0.order) })
+        #expect(byFile["unordered.md"] == 1)
+        #expect(byFile["first.md"] == 2)
+        #expect(byFile["second.md"] == 3)
+        #expect(byFile["third.md"] == 4)
+    }
+}

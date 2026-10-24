@@ -32,6 +32,7 @@ import Testing
         #expect(prompt.contains("PROJECT.md"))
         #expect(prompt.contains("status: proposed"))
         #expect(prompt.contains("between 10 and 50"))
+        #expect(prompt.contains("order: 1"))
         #expect(!prompt.contains("You can also read"))
         let withRefs = BacklogPlanner.prompt(cardsFolder: URL(filePath: "/tmp/app/.codefactory"),
                                              references: [URL(filePath: "/Users/me/projects/reviewdesk")], fromExistingCode: false)
@@ -91,7 +92,7 @@ import Testing
 
     @Test func workNamesTheCardOrPicksTheNext() {
         #expect(AgentPrompts.work(card: "fix-crash.md", cardsFolder: cards).contains("fix-crash.md"))
-        #expect(AgentPrompts.work(card: nil, cardsFolder: cards).contains("highest-priority"))
+        #expect(AgentPrompts.work(card: nil, cardsFolder: cards).contains("lowest `order:`"))
         #expect(AgentPrompts.work(card: nil, cardsFolder: cards).contains("pull request"))
     }
 

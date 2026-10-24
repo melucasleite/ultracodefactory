@@ -8,7 +8,8 @@ public enum AgentPrompts {
         """
         This project's work cards live in \(cards.path), one markdown file per card, in one folder per status: \
         proposed, todo, picked-up, waiting, done, wont-do. A card's folder is its status; when you move a card, \
-        also update the `status:` and `updated:` (YYYY-MM-DD) lines in its frontmatter. Never overwrite or delete a card. \
+        also update the `status:` and `updated:` (YYYY-MM-DD) lines in its frontmatter. `order:` is the project's build \
+        sequence (1 = first); keep it when moving cards. Never overwrite or delete a card. \
         Read PROJECT.md first if it exists.
         """
     }
@@ -22,7 +23,8 @@ public enum AgentPrompts {
 
         Look at the repository just enough to make the card concrete (relevant files, tests, conventions), but do not change any code. \
         Write it to \(cardsFolder.appending(path: CardStatus.todo.rawValue).path)/<kebab-case-title>.md with frontmatter \
-        title, status: todo, kind (feature | bug | chore | refactor | spike | docs), priority (high | medium | low), created and updated, \
+        title, status: todo, kind (feature | bug | chore | refactor | spike | docs), priority (high | medium | low), \
+        order (one more than the highest order on the board), created and updated, \
         then "## Goal" (what and why, one paragraph) and "## Acceptance criteria" (a checklist of observable outcomes).
         """
     }
@@ -30,7 +32,7 @@ public enum AgentPrompts {
     /// Pick up a card (or the next one) and take it all the way to a pull request.
     public static func work(card: String?, cardsFolder: URL) -> String {
         let which = card.map { "Work on the card \($0)." }
-            ?? "Pick the highest-priority, oldest card in the todo folder."
+            ?? "Pick the card in the todo folder with the lowest `order:` (if none have one, the highest-priority, oldest card)."
         return """
         \(board(cardsFolder))
 

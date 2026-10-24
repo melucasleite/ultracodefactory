@@ -81,13 +81,12 @@ public struct CardBoard: Sendable {
                     kind: fm.fields["kind"].nonEmpty,
                     updated: fm.fields["updated"].nonEmpty,
                     priority: fm.fields["priority"].nonEmpty,
+                    order: fm.fields["order"].flatMap { Int($0) },
                     pullRequest: fm.fields["pr"].flatMap(URL.init(string:)) ?? Card.pullRequestURL(in: fm.body)
                 ))
             }
         }
-        return cards.sorted { lhs, rhs in
-            (lhs.updated ?? "", rhs.file) > (rhs.updated ?? "", lhs.file)
-        }
+        return cards.sorted(by: Card.executionOrder)
     }
 
     public func read(status: CardStatus, file: String) throws -> String {
@@ -124,6 +123,31 @@ public struct CardBoard: Sendable {
         try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         try updated.write(to: destination, atomically: true, encoding: .utf8)
         try FileManager.default.removeItem(at: source)
+    }
+
+    /// Puts a card just before `target` (or last when `target` is nil) in
+    /// the project's execution order, then renumbers every card's `order:`
+    /// 1…n. Cards keep their relative order otherwise; only `order:` lines
+    /// change, and only on cards whose number actually changes.
+    public func reorder(file: String, in status: CardStatus, before target: (file: String, status: CardStatus)?) throws {
+        var cards = listCards()
+        guard let moving = cards.firstIndex(where: { $0.file == file && $0.status == status }) else {
+            throw CardError.notFound(file)
+        }
+        let card = cards.remove(at: moving)
+        let index = target.flatMap { t in cards.firstIndex { $0.file == t.file && $0.status == t.status } } ?? cards.endIndex
+        cards.insert(card, at: index)
+        try renumber(cards.map { ($0.file, $0.status) })
+    }
+
+    /// Writes `order:` 1…n onto the given cards, in that order.
+    public func renumber(_ cards: [(file: String, status: CardStatus)]) throws {
+        for (offset, card) in cards.enumerated() {
+            let content = try read(status: card.status, file: card.file)
+            let wanted = String(offset + 1)
+            guard Frontmatter.parse(content).fields["order"] != wanted else { continue }
+            try write(status: card.status, file: card.file, content: Frontmatter.updating(content, with: ["order": wanted]))
+        }
     }
 
     /// Moves a card to the macOS Trash rather than deleting it outright.

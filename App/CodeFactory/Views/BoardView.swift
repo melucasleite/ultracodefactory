@@ -126,6 +126,7 @@ struct CardTile: View {
     @Binding var openCard: Card?
     @State private var hovering = false
     @State private var confirmTrash = false
+    @State private var dropTarget = false
 
     private var fresh: Bool { model.freshCards.contains(card.id) }
 
@@ -133,11 +134,22 @@ struct CardTile: View {
         let tint = Theme.color(for: card.status)
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 8) {
-                Circle()
-                    .fill(tint)
-                    .frame(width: 7, height: 7)
-                    .shadow(color: tint, radius: 4)
-                    .padding(.top, 6)
+                if let order = card.order {
+                    Text("\(order)")
+                        .font(.system(size: 10, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(tint)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .padding(.horizontal, 2)
+                        .background(tint.opacity(0.18), in: Capsule())
+                        .overlay(Capsule().strokeBorder(tint.opacity(0.5), lineWidth: 0.5))
+                        .help("Step \(order) in the build order")
+                } else {
+                    Circle()
+                        .fill(tint)
+                        .frame(width: 7, height: 7)
+                        .shadow(color: tint, radius: 4)
+                        .padding(.top, 6)
+                }
                 Text(card.title)
                     .font(.system(.callout, design: .rounded).weight(.semibold))
                     .lineLimit(4)
@@ -196,6 +208,15 @@ struct CardTile: View {
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { hovering = $0 }
         .onTapGesture { openCard = card }
+        .dropDestination(for: CardReference.self) { refs, _ in
+            for ref in refs { model.place(ref, before: card) }
+            return !refs.isEmpty
+        } isTargeted: { dropTarget = $0 }
+        .overlay(alignment: .top) {
+            if dropTarget {
+                Capsule().fill(Theme.safetyOrange).frame(height: 3).offset(y: -6).shadow(color: Theme.safetyOrange, radius: 4)
+            }
+        }
         .draggable(CardReference(card)) {
             Text(card.title)
                 .font(.system(.callout, design: .rounded).weight(.semibold))

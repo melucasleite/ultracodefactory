@@ -10,6 +10,8 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
     public var kind: String?
     public var updated: String?
     public var priority: String?
+    /// Execution order within the column (1 = first). Cards without one sort last.
+    public var order: Int?
     /// The most recent pull request linked from the card body, if any.
     public var pullRequest: URL?
 
@@ -25,6 +27,7 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
         kind: String? = nil,
         updated: String? = nil,
         priority: String? = nil,
+        order: Int? = nil,
         pullRequest: URL? = nil
     ) {
         self.project = project
@@ -35,7 +38,18 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
         self.kind = kind
         self.updated = updated
         self.priority = priority
+        self.order = order
         self.pullRequest = pullRequest
+    }
+
+    /// Execution order first; unordered cards after, newest first.
+    public static func executionOrder(_ lhs: Card, _ rhs: Card) -> Bool {
+        switch (lhs.order, rhs.order) {
+        case let (l?, r?) where l != r: return l < r
+        case (_?, nil): return true
+        case (nil, _?): return false
+        default: return (lhs.updated ?? "", rhs.file) > (rhs.updated ?? "", lhs.file)
+        }
     }
 
     /// The pull request number, for display ("#42").
