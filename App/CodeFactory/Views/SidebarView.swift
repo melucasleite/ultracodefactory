@@ -21,6 +21,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
         .safeAreaInset(edge: .bottom) { floorStatus }
         .toolbar {
             ToolbarItem {

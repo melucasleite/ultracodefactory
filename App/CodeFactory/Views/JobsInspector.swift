@@ -9,6 +9,19 @@ struct JobsInspector: View {
         let active = model.jobs.filter(\.state.isActive)
         let finished = model.jobs.filter { !$0.state.isActive }
         VStack(spacing: 0) {
+            HStack {
+                Label("Factory Floor", systemImage: "gearshape.2.fill")
+                    .font(.system(.headline, design: .rounded))
+                    .foregroundStyle(Theme.safetyOrange)
+                Spacer()
+                if !active.isEmpty {
+                    Text("\(active.count) live")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .glassCapsule(tint: Theme.safetyOrange)
+                }
+            }
+            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 6)
             if model.jobs.isEmpty {
                 ContentUnavailableView {
                     Label("Floor’s quiet", systemImage: "gearshape.2")
@@ -29,12 +42,13 @@ struct JobsInspector: View {
                     }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
                 if !finished.isEmpty {
                     Divider()
                     HStack {
                         Spacer()
                         Button("Clear Finished", systemImage: "sparkles") { Task { await model.clearFinished() } }
-                            .buttonStyle(.borderless)
+                            .glassButton()
                     }
                     .padding(10)
                 }
@@ -52,7 +66,9 @@ struct JobRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             ZStack {
-                Circle().fill(Theme.color(for: job.state).opacity(0.15)).frame(width: 28, height: 28)
+                Circle().fill(.clear).frame(width: 30, height: 30)
+                    .glassCapsule(tint: Theme.color(for: job.state))
+                    .shadow(color: Theme.color(for: job.state).opacity(job.state.isActive ? 0.6 : 0), radius: 8)
                 Image(systemName: Theme.symbol(for: job.state))
                     .foregroundStyle(Theme.color(for: job.state))
                     .symbolEffect(.rotate, options: .repeat(.continuous), isActive: job.state == .running)

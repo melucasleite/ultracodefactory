@@ -56,9 +56,13 @@ struct CardDetailView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
-            RoundedRectangle(cornerRadius: 2).fill(Theme.color(for: status)).frame(width: 4, height: 40)
+            Image(systemName: status.symbol)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Theme.color(for: status))
+                .frame(width: 42, height: 42)
+                .glassPanel(cornerRadius: 12, tint: Theme.color(for: status))
             VStack(alignment: .leading, spacing: 6) {
-                Text(card.title).font(.title2.bold()).lineLimit(2)
+                Text(card.title).font(.system(.title2, design: .rounded).weight(.bold)).lineLimit(2)
                 HStack(spacing: 8) {
                     if let id = card.cardID { Text("#\(id)").font(.caption.monospaced()).foregroundStyle(.secondary) }
                     if let kind = card.kind { KindChip(kind: kind) }
@@ -111,6 +115,8 @@ struct CardDetailView: View {
                 dismiss()
             }
             .keyboardShortcut(.defaultAction)
+            .glassButton(prominent: true)
+            .tint(Theme.safetyOrange)
         }
         .labelStyle(.titleAndIcon)
         .padding(12)

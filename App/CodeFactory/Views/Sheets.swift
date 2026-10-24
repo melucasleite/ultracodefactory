@@ -45,7 +45,7 @@ struct CreateWorkSheet: View {
                 } label: {
                     Label(firing ? "Starting…" : "Fabricate", systemImage: "hammer.fill")
                 }
-                .buttonStyle(.borderedProminent)
+                .glassButton(prominent: true)
                 .tint(Theme.safetyOrange)
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(idea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || firing)
@@ -90,7 +90,7 @@ struct NewCardSheet: View {
                         onCreated(card)
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .glassButton(prominent: true)
                 .tint(Theme.safetyOrange)
                 .keyboardShortcut(.defaultAction)
                 .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -111,10 +111,11 @@ struct SheetHeader: View {
             Image(systemName: symbol)
                 .font(.title2)
                 .foregroundStyle(Theme.safetyOrange)
-                .frame(width: 40, height: 40)
-                .background(Theme.safetyOrange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                .frame(width: 44, height: 44)
+                .glassPanel(cornerRadius: 12, tint: Theme.safetyOrange)
+                .shadow(color: Theme.safetyOrange.opacity(0.4), radius: 10)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.title3.bold())
+                Text(title).font(.system(.title3, design: .rounded).weight(.bold))
                 Text(subtitle).font(.callout).foregroundStyle(.secondary)
             }
         }

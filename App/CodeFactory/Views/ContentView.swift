@@ -27,13 +27,21 @@ struct ContentView: View {
             SidebarView()
                 .navigationSplitViewColumnWidth(min: 190, ideal: 220, max: 300)
         } detail: {
-            detail
-                .overlay(alignment: .top) { errorBanner }
+            HStack(spacing: 0) {
+                detail
+                if showJobs && model.vaultReady {
+                    JobsInspector()
+                        .frame(width: 320)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .glassPanel(cornerRadius: 24)
+                        .padding([.vertical, .trailing], 12)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .overlay(alignment: .top) { errorBanner }
+            .animation(.spring(duration: 0.4, bounce: 0.2), value: showJobs)
         }
-        .inspector(isPresented: $showJobs) {
-            JobsInspector()
-                .inspectorColumnWidth(min: 260, ideal: 310, max: 440)
-        }
+        .background(FactoryBackdrop())
         .toolbar { toolbar }
         .searchable(text: $search, placement: .toolbar, prompt: "Filter cards")
         .navigationTitle(model.selectedProject ?? "Code Factory")
@@ -72,6 +80,7 @@ struct ContentView: View {
             } description: {
                 Text("Create a project folder in your vault’s work folder, or use **New Project** in the sidebar.")
             }
+            .background(FactoryBackdrop())
         }
     }
 
@@ -79,18 +88,18 @@ struct ContentView: View {
     private var errorBanner: some View {
         if let message = model.errorMessage {
             HStack(spacing: 10) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.white)
-                Text(message).foregroundStyle(.white).font(.callout).lineLimit(3)
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
+                Text(message).font(.callout).lineLimit(3)
                 Spacer()
                 Button("Dismiss", systemImage: "xmark") { model.errorMessage = nil }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.plain)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(Color.red.gradient, in: RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .glassPanel(cornerRadius: 18, tint: .red)
             .padding(12)
-            .shadow(radius: 8)
+            .shadow(color: .red.opacity(0.35), radius: 16)
             .transition(.move(edge: .top).combined(with: .opacity))
             .task(id: message) {
                 try? await Task.sleep(for: .seconds(8))
@@ -102,6 +111,18 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         let enabled = model.vaultReady && model.selectedProject != nil
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                if let p = model.selectedProject { sheet = .createWork(p) }
+            } label: {
+                Label("Create Work", systemImage: LaunchAction.create.symbol)
+                    .labelStyle(.titleAndIcon)
+            }
+            .glassButton(prominent: true)
+            .tint(Theme.safetyOrange)
+            .help("Have an agent write a card from your idea (⌘N)")
+            .disabled(!enabled)
+        }
         ToolbarItemGroup(placement: .primaryAction) {
             Menu {
                 Button("All Kinds") { kindFilter = nil }
@@ -126,14 +147,6 @@ struct ContentView: View {
                 Button("Run Work", systemImage: LaunchAction.work.symbol) { launch(.work) }
                     .help("Start an agent on the next card")
             }
-            .disabled(!enabled)
-
-            Button {
-                if let p = model.selectedProject { sheet = .createWork(p) }
-            } label: {
-                Label("Create Work", systemImage: LaunchAction.create.symbol)
-            }
-            .help("Have an agent write a card from your idea (⌘N)")
             .disabled(!enabled)
 
             Button {

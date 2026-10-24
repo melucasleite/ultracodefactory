@@ -176,7 +176,8 @@ public enum AgentLauncher {
         case .interactive:
             if let session = job.session, let tmux { try await Tmux(binary: tmux).kill(session) }
         case .headless:
-            if let pid = job.pid, ProcessInspector.isOurs(pid: pid, startedAt: job.startedAt, executableName: executableName) {
+            if let pid = job.pid, LiveProcesses.shared.isRunning(job.id)
+                || ProcessInspector.isOurs(pid: pid, startedAt: job.startedAt, executableName: executableName) {
                 Darwin.kill(pid, SIGTERM)
             }
         }
@@ -196,5 +197,11 @@ final class LiveProcesses: @unchecked Sendable {
 
     func remove(_ id: String) {
         lock.withLock { _ = processes.removeValue(forKey: id) }
+    }
+
+    /// Whether this app launched `id` itself and it is still running — the
+    /// most reliable liveness signal, whatever the executable turned out to be.
+    func isRunning(_ id: String) -> Bool {
+        lock.withLock { processes[id]?.isRunning ?? false }
     }
 }

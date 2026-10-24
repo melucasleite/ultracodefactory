@@ -1,70 +1,99 @@
 <p align="center">
-  <img src="docs/icon.png" width="128" height="128" alt="Code Factory icon">
+  <img src="docs/icon.png" width="144" height="144" alt="Code Factory app icon: an orange gear with a terminal prompt over hazard stripes">
 </p>
 
 <h1 align="center">Code Factory</h1>
 
 <p align="center">
-  A native macOS kanban board for markdown work cards, staffed by
-  <a href="https://docs.claude.com/en/docs/claude-code">Claude Code</a> agents.
+  <strong>Your backlog is the assembly line. Claude Code agents are the crew.</strong><br>
+  A native macOS kanban board for markdown work cards, built in SwiftUI with Liquid Glass.
+</p>
+
+<p align="center">
+  <a href="https://ultracodefactory.com"><strong>🌐 ultracodefactory.com</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://ultracodefactory.com">Website</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="SECURITY.md">Security</a>
+</p>
+
+<p align="center">
+  <a href="https://ultracodefactory.com"><img alt="Website: ultracodefactory.com" src="https://img.shields.io/badge/website-ultracodefactory.com-FF8500?logo=safari&logoColor=white"></a>
+  <img alt="macOS 15+" src="https://img.shields.io/badge/macOS-15%2B-black?logo=apple">
+  <img alt="Swift 6" src="https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white">
+  <img alt="SwiftUI" src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20Liquid%20Glass-0A84FF">
+  <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-FF8500">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/board.jpg" alt="The Code Factory board: six glass columns over an orange and blue aurora, a card being fabricated by an agent, and the Factory Floor panel listing three live agents" width="100%">
 </p>
 
 ---
 
-Code Factory turns a folder of markdown files into a production line. Each
-card is a plain `.md` file; each column is a folder. Drag a card and the file
-moves. Ask for work and an agent writes the card. Hit **Run Work** and an
-agent picks it up in the project's repository, while you watch its terminal,
-answer its questions with real buttons, and get a notification when it needs
-you.
+Code Factory turns a folder of plain markdown files into a production line.
+Every card is a `.md` file and every column is a folder. Drag a card and the
+file moves. Describe an idea and an agent writes the card. Hit **Run Work**
+and an agent picks it up inside the project's repository. You watch its
+terminal live, answer its questions with real buttons, and get a notification
+the moment it needs you.
 
-Your cards stay plain text, so they work just as well in Obsidian, your
-editor, `git`, or `grep`.
+No database, no account, no cloud. Your cards stay plain text, so they work
+just as well in Obsidian, your editor, `git` or `grep`.
 
-## Features
+## Highlights
 
-- **Live kanban board**: six stations (Proposed, To-Do, Picked Up, Waiting,
-  Done, Won't Do), drag and drop, search and kind filters. The board updates
-  instantly when files change on disk, whether you, an agent, or Obsidian
-  changed them (FSEvents).
-- **Card editor**: rendered markdown with clickable task checkboxes that
-  write straight back to the file, plus a raw editor (⌘S).
-- **Create Work**: describe an idea; a headless `claude -p` agent turns it
-  into a card while a "fabricating" placeholder holds its spot on the board.
-- **Run Work / Triage / Open Session**: interactive Claude Code sessions
-  inside detached `tmux` sessions, one per job.
-- **Console windows**: a colour terminal mirror of each agent, keyboard
-  passthrough, and Claude's multiple-choice prompts drawn as native buttons
-  (⌘1–⌘9).
-- **Factory floor**: an inspector listing every agent with live status,
-  elapsed time, stop, and attach-from-your-terminal commands.
-- **Menu bar extra and notifications** for agents that finish or need input.
-- **Demo factory**: a sample vault and scratch repo, so you can try it
-  without pointing it at real work.
+|                             |                                                                                                                                                                                              |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🏭 **Live board**           | Six stations: Proposed, To-Do, Picked Up, Waiting, Done, Won't Do. Drag and drop, search, and a filter by kind. FSEvents updates the board the instant any file changes, whoever changed it. |
+| 🪄 **Create Work**          | Type an idea and a headless `claude -p` agent turns it into a card. A hazard-striped _Fabricating…_ placeholder holds its spot until the card lands.                                         |
+| ▶️ **Run Work & Triage**    | Interactive Claude Code sessions run in detached `tmux` sessions, one per job, inside the project's repository.                                                                              |
+| 💬 **Native questions**     | When Claude asks a multiple-choice question, the console turns it into glass buttons. Click one or press ⌘1–⌘9.                                                                              |
+| 🖥️ **Live consoles**        | A full-colour mirror of every agent's terminal with keyboard passthrough, ⌃C, and a one-click `tmux attach` command for your own terminal.                                                   |
+| 🧭 **Factory Floor**        | A floating glass panel listing every agent's state (working, waiting for you, finished, failed) with elapsed time and Stop.                                                                  |
+| 🔔 **Stays out of the way** | A menu bar status icon, plus notifications when an agent finishes or needs input.                                                                                                            |
+| ✅ **Real markdown**        | Rendered cards with clickable checkboxes that write straight back to the file, and a raw editor on ⌘S.                                                                                       |
+| 🧪 **Demo Factory**         | One click sets up a sample vault and a scratch repo, so you can try everything without touching real code.                                                                                   |
 
-## Requirements
+<p align="center">
+  <img src="docs/screenshots/console.jpg" alt="An agent console: Claude's triage question shown in the terminal and again as three native glass buttons" width="80%">
+</p>
 
-- macOS 15 or later
-- [Claude Code](https://docs.claude.com/en/docs/claude-code) (`claude` on your PATH)
-- [tmux](https://github.com/tmux/tmux) 3.2 or later (`brew install tmux`), for interactive agents
-- To build: Xcode 16 or later, plus [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+## Quick start
 
-## Build and run
+You'll need **macOS 15 or later**, [Claude Code](https://docs.claude.com/en/docs/claude-code),
+and `tmux` 3.2 or later for interactive agents. Building needs Xcode 16 or
+later and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```bash
+brew install tmux xcodegen
+git clone https://github.com/<you>/ultracode-factory.git
+cd ultracode-factory
 make run
 ```
 
-That generates the Xcode project, builds a Debug app (signed ad hoc, so no
-Apple developer account is needed), and launches it. `make test` runs the
-unit tests and `make project` just generates `CodeFactory.xcodeproj` so you
-can open it in Xcode.
+`make run` generates the Xcode project, builds a Debug app and launches it.
+The app is signed ad hoc, so you don't need an Apple developer account. On
+first launch, choose your vault folder or click **Try the Demo Factory**.
 
-## Vault layout
+| Command        | What it does                                         |
+| -------------- | ---------------------------------------------------- |
+| `make run`     | Build and launch                                     |
+| `make test`    | Run the `CodeFactoryKit` unit tests (Swift Testing)  |
+| `make project` | Generate `CodeFactory.xcodeproj` to open it in Xcode |
+| `make release` | Build a Release app                                  |
+| `make icon`    | Redraw the app icon from code                        |
+
+## How it works
+
+### The vault
 
 ```
 vault/
-└─ Work/                       ← "work folder" (configurable)
+└─ Work/                       ← the "work folder" (configurable)
    └─ my-project/              ← one folder per project
       ├─ proposed/
       ├─ todo/
@@ -94,66 +123,97 @@ updated: 2026-10-23
 - [ ] Fix the parser
 ```
 
-The folder a card is in is its real status. When you move a card, Code
-Factory also rewrites the `status:` and `updated:` lines and leaves every
-other byte alone.
+A card's folder is its real status. When you move a card, Code Factory
+rewrites only the `status:` and `updated:` lines and leaves every other byte
+alone. A move never overwrites another card, and deleting a card sends it to
+the Trash.
 
-## Agents
+<p align="center">
+  <img src="docs/screenshots/card.jpg" alt="A card open in its detail sheet: rendered markdown with ticked checkboxes, a code block, and a status picker" width="80%">
+</p>
 
-Each toolbar action sends the agent a configurable slash command as its first
-message (**Settings → Agents**):
+### The agents
 
-| Action       | Default        | Mode                   |
-| ------------ | -------------- | ---------------------- |
-| Create Work  | `/work-create` | headless (`claude -p`) |
-| Run Work     | `/work`        | interactive (tmux)     |
-| Triage       | `/work-triage` | interactive (tmux)     |
-| Open Session | none           | interactive (tmux)     |
+Each action sends the agent a slash command you can change in
+**Settings → Agents**:
 
-Example skills that implement these commands are in
+| Action       | Default command | Runs as                |
+| ------------ | --------------- | ---------------------- |
+| Create Work  | `/work-create`  | headless (`claude -p`) |
+| Run Work     | `/work`         | interactive (tmux)     |
+| Triage       | `/work-triage`  | interactive (tmux)     |
+| Open Session | none            | interactive (tmux)     |
+
+Ready-to-use versions of these skills are in
 [`Examples/skills`](Examples/skills). Copy them into `~/.claude/skills/` or a
-project's `.claude/skills/` and adjust them to taste. Agents also receive
-`CODE_FACTORY_VAULT`, `CODE_FACTORY_WORK_FOLDER` and `CODE_FACTORY_PROJECT`
-in their environment.
+project's `.claude/skills/`. Every agent also gets `CODE_FACTORY_VAULT`,
+`CODE_FACTORY_WORK_FOLDER` and `CODE_FACTORY_PROJECT` in its environment, so a
+skill always knows where its cards live.
 
-To attach to any interactive agent from your own terminal, copy the
-`tmux attach -t codefactory-…` command from its console.
+### Keyboard shortcuts
 
-## Safety
+| Shortcut | Action                         |
+| -------- | ------------------------------ |
+| ⌘N       | Create Work                    |
+| ⇧⌘N      | New Card (write it yourself)   |
+| ⌘R       | Run Work                       |
+| ⇧⌘T      | Triage                         |
+| ⇧⌘O      | Open a session in the repo     |
+| ⌥⌘0      | Show or hide the Factory Floor |
+| ⌘1–⌘9    | Answer an agent's question     |
+| ⌘S       | Save the card you're editing   |
 
-Code Factory launches AI agents that can change files in your repositories.
-Read [SECURITY.md](SECURITY.md) before you use it on code you care about. In
-short:
+## Built to be safe
 
-- Agents start in **Accept file edits** permission mode. **Bypass all
-  permissions** has to be switched on deliberately, and the app warns you
-  when you do.
-- The app is not sandboxed, because launching `tmux` and `claude` is the
-  whole point. It sends nothing over the network; any network traffic comes
-  from the agents you start.
-- Commands run without a shell, and every file name from the outside world is
-  validated, so nothing can escape the vault.
-- Deleted cards go to the Trash, and a move never overwrites an existing
-  card.
+Code Factory launches AI agents that can change your code, so it is careful
+about what it hands them. Read [SECURITY.md](SECURITY.md) for the details.
 
-## Project structure
+- 🛡️ **Conservative by default.** Agents start in _Accept file edits_ mode.
+  _Bypass all permissions_ has to be switched on deliberately, and the app
+  shows a red warning when it is.
+- 🐚 **No shell, ever.** Every process starts from an argument array. Prompts
+  and anything you type reach tmux as literal text, so `$(whoami)` stays text
+  and "Enter" stays a word.
+- 📁 **No path escapes.** Every project, column and card name is checked
+  before it touches the filesystem.
+- 🎯 **Precise stops.** Before signalling a process, the app confirms the PID
+  still belongs to the agent it launched.
+- 📡 **No telemetry.** The app makes no network connections of its own.
+
+## Under the hood
 
 ```
-App/CodeFactory/            SwiftUI app: views, models, theme, assets
-Packages/CodeFactoryKit/    Pure-Swift core with unit tests
-  Vault.swift               cards on disk, path validation
+App/CodeFactory/            SwiftUI app
+  Support/Glass.swift       the glass design system and aurora backdrop
+  Views/                    board, console, Factory Floor, sheets, settings
+  Model/                    FactoryModel, ConsoleModel, preferences
+Packages/CodeFactoryKit/    pure-Swift core with unit tests
+  Vault.swift               cards on disk and path validation
   Frontmatter.swift         surgical frontmatter edits
   AgentLauncher.swift       headless and tmux agents, permission modes
   JobStore.swift            persistent job ledger and liveness checks
   QuestionParser.swift      Claude's option prompts → native buttons
   ANSI.swift                terminal colours → styled text
-Examples/skills/            sample /work-create, /work, /work-triage skills
-Scripts/make-icon.swift     the app icon, drawn in code
+  DirectoryWatcher.swift    FSEvents
+Examples/skills/            sample /work-create, /work and /work-triage skills
+Scripts/make-icon.swift     the app icon, drawn entirely in code
 ```
+
+On macOS 26 and later the interface uses real **Liquid Glass**
+(`glassEffect`, `GlassEffectContainer` and the glass button styles). On
+macOS 15 it falls back to vibrant materials with a hairline rim, so the
+layout is the same everywhere.
+
+## Contributing
+
+Pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Tip: you
+can test agent flows without spending tokens by pointing **Settings → Agents →
+claude** at a small script that prints a `❯ 1. …` option list.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) © 2026 Lucas Leite
 
-Code Factory is an independent project. It is not affiliated with or endorsed
-by Anthropic. "Claude" and "Claude Code" are trademarks of their owner.
+Code Factory is an independent open-source project. It is not affiliated
+with or endorsed by Anthropic. "Claude" and "Claude Code" are trademarks of
+their owner.

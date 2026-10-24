@@ -38,24 +38,6 @@ struct BoardView: View {
             }
             .scrollIndicators(.automatic)
         }
-        .background(BoardBackground())
-    }
-}
-
-/// A faint blueprint grid behind the board.
-private struct BoardBackground: View {
-    var body: some View {
-        Canvas { gc, size in
-            let step: CGFloat = 24
-            var path = Path()
-            var x: CGFloat = 0
-            while x < size.width { path.move(to: .init(x: x, y: 0)); path.addLine(to: .init(x: x, y: size.height)); x += step }
-            var y: CGFloat = 0
-            while y < size.height { path.move(to: .init(x: 0, y: y)); path.addLine(to: .init(x: size.width, y: y)); y += step }
-            gc.stroke(path, with: .color(.primary.opacity(0.035)), lineWidth: 1)
-        }
-        .background(.background)
-        .ignoresSafeArea()
     }
 }
 
@@ -69,22 +51,28 @@ struct ColumnView: View {
 
     var body: some View {
         let tint = Theme.color(for: status)
-        VStack(spacing: 0) {
-            Rectangle().fill(tint.gradient).frame(height: 3)
+        VStack(spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: status.symbol).foregroundStyle(tint).font(.callout.weight(.semibold))
+                Image(systemName: status.symbol)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(tint)
+                    .shadow(color: tint.opacity(0.6), radius: 6)
                 Text(status.title).font(.headline)
                 Spacer()
                 Text("\(cards.count)")
-                    .font(.caption.monospacedDigit().weight(.semibold))
-                    .padding(.horizontal, 7).padding(.vertical, 2)
-                    .background(tint.opacity(0.15), in: Capsule())
+                    .font(.caption.monospacedDigit().weight(.bold))
                     .foregroundStyle(tint)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .glassCapsule(tint: tint)
             }
-            .padding(.horizontal, 12).padding(.vertical, 10)
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .glassPanel(cornerRadius: 14, tint: tint)
+            .overlay(alignment: .top) {
+                Capsule().fill(tint.gradient).frame(height: 2.5).padding(.horizontal, 18).shadow(color: tint, radius: 6)
+            }
 
             ScrollView {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 10) {
                     ForEach(fabricating) { job in
                         FabricatingTile(job: job)
                     }
@@ -92,23 +80,33 @@ struct ColumnView: View {
                         CardTile(card: card, openCard: $openCard)
                     }
                     if cards.isEmpty && fabricating.isEmpty {
-                        Text(targeted ? "Drop to move here" : "Empty")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .frame(maxWidth: .infinity, minHeight: 60)
+                        VStack(spacing: 6) {
+                            Image(systemName: targeted ? "arrow.down.circle" : status.symbol)
+                                .font(.title2)
+                            Text(targeted ? "Drop to move here" : "Nothing here")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(targeted ? tint : Color.secondary.opacity(0.6))
+                        .frame(maxWidth: .infinity, minHeight: 90)
                     }
                 }
-                .padding(.horizontal, 10).padding(.bottom, 10)
+                .padding(4)
+                .glassGroup(spacing: 10)
             }
+            .scrollIndicators(.never)
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(6)
+        .background {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(targeted ? tint.opacity(0.12) : Color.primary.opacity(0.025))
+        }
         .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(targeted ? tint : Color.primary.opacity(0.08), lineWidth: targeted ? 2 : 1)
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(targeted ? tint.opacity(0.9) : Color.primary.opacity(0.06),
+                              style: StrokeStyle(lineWidth: targeted ? 2 : 1, dash: targeted ? [6, 4] : []))
         }
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: targeted ? tint.opacity(0.35) : .clear, radius: 10)
-        .animation(.snappy(duration: 0.18), value: targeted)
+        .shadow(color: targeted ? tint.opacity(0.45) : .clear, radius: 18)
+        .animation(.spring(duration: 0.3, bounce: 0.3), value: targeted)
         .dropDestination(for: CardReference.self) { refs, _ in
             for ref in refs { model.move(ref, to: status) }
             return !refs.isEmpty
@@ -125,19 +123,27 @@ struct CardTile: View {
     @State private var confirmTrash = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(card.title)
-                .font(.callout.weight(.medium))
-                .lineLimit(4)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        let tint = Theme.color(for: card.status)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 7, height: 7)
+                    .shadow(color: tint, radius: 4)
+                    .padding(.top, 6)
+                Text(card.title)
+                    .font(.system(.callout, design: .rounded).weight(.semibold))
+                    .lineLimit(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             HStack(spacing: 6) {
-                if let id = card.cardID {
-                    Text("#\(id)").font(.caption2.monospaced()).foregroundStyle(.secondary)
-                }
                 if let kind = card.kind { KindChip(kind: kind) }
                 if let priority = card.priority {
                     Label(priority, systemImage: "flag.fill")
-                        .font(.caption2).foregroundStyle(.orange).labelStyle(.titleAndIcon)
+                        .font(.caption2.weight(.semibold)).foregroundStyle(.orange).labelStyle(.titleAndIcon)
+                }
+                if let id = card.cardID {
+                    Text("#\(id)").font(.caption2.monospaced()).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
                 if let updated = card.updated {
@@ -145,31 +151,20 @@ struct CardTile: View {
                 }
             }
         }
-        .padding(10)
-        .background {
-            RoundedRectangle(cornerRadius: 9)
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .shadow(color: .black.opacity(hovering ? 0.18 : 0.06), radius: hovering ? 6 : 2, y: hovering ? 3 : 1)
-        }
-        .overlay(alignment: .leading) {
-            UnevenRoundedRectangle(topLeadingRadius: 9, bottomLeadingRadius: 9)
-                .fill(Theme.color(for: card.status))
-                .frame(width: 3)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 9).strokeBorder(Color.primary.opacity(hovering ? 0.15 : 0.07))
-        }
-        .scaleEffect(hovering ? 1.01 : 1)
-        .animation(.snappy(duration: 0.15), value: hovering)
-        .contentShape(RoundedRectangle(cornerRadius: 9))
+        .padding(12)
+        .glassPanel(cornerRadius: 14, interactive: true)
+        .shadow(color: .black.opacity(hovering ? 0.25 : 0.1), radius: hovering ? 14 : 5, y: hovering ? 8 : 2)
+        .scaleEffect(hovering ? 1.025 : 1)
+        .animation(.spring(duration: 0.3, bounce: 0.35), value: hovering)
+        .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { hovering = $0 }
         .onTapGesture { openCard = card }
         .draggable(CardReference(card)) {
             Text(card.title)
-                .font(.callout.weight(.medium))
-                .padding(10)
-                .frame(width: 220, alignment: .leading)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 9))
+                .font(.system(.callout, design: .rounded).weight(.semibold))
+                .padding(12)
+                .frame(width: 230, alignment: .leading)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
         }
         .contextMenu {
             Button("Open", systemImage: "doc.text") { openCard = card }
@@ -207,11 +202,11 @@ struct KindChip: View {
     var body: some View {
         let color = Theme.color(forKind: kind)
         Text(kind)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(color.opacity(0.14), in: Capsule())
-            .overlay(Capsule().strokeBorder(color.opacity(0.35)))
+            .font(.system(.caption2, design: .rounded).weight(.bold))
             .foregroundStyle(color)
+            .padding(.horizontal, 7).padding(.vertical, 2.5)
+            .background(color.opacity(0.16), in: Capsule())
+            .overlay(Capsule().strokeBorder(color.opacity(0.35), lineWidth: 0.5))
     }
 }
 
@@ -225,7 +220,11 @@ struct FabricatingTile: View {
                 Image(systemName: "gearshape.2.fill")
                     .symbolEffect(.rotate, options: .repeat(.continuous))
                     .foregroundStyle(Theme.safetyOrange)
-                Text("Fabricating…").font(.caption.weight(.semibold)).foregroundStyle(Theme.safetyOrange)
+                Text("Fabricating…")
+                    .font(.system(.caption, design: .rounded).weight(.bold))
+                    .foregroundStyle(Theme.safetyOrange)
+                Spacer()
+                ProgressView().controlSize(.mini)
             }
             Text(job.prompt)
                 .font(.caption)
@@ -233,13 +232,13 @@ struct FabricatingTile: View {
                 .lineLimit(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(10)
-        .padding(.top, 6)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.7), in: RoundedRectangle(cornerRadius: 9))
+        .padding(12)
+        .padding(.top, 4)
         .overlay(alignment: .top) {
-            HazardStripes().frame(height: 5).opacity(0.85)
+            HazardStripes().frame(height: 4).opacity(0.9)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 9))
-        .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Theme.hazardYellow.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+        .glassPanel(cornerRadius: 14, tint: Theme.safetyOrange)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: Theme.safetyOrange.opacity(0.35), radius: 12)
     }
 }

@@ -11,10 +11,15 @@ struct WelcomeView: View {
         VStack(spacing: 22) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 112, height: 112)
-                .shadow(color: Theme.safetyOrange.opacity(0.35), radius: 24)
+                .frame(width: 128, height: 128)
+                .shadow(color: Theme.safetyOrange.opacity(0.55), radius: 36)
+                .phaseAnimator([0.0, 1.0]) { icon, phase in
+                    icon.offset(y: phase * -6)
+                } animation: { _ in .easeInOut(duration: 2.4) }
             VStack(spacing: 6) {
-                Text("Code Factory").font(.largeTitle.bold())
+                Text("Code Factory")
+                    .font(.system(size: 44, weight: .heavy, design: .rounded))
+                    .foregroundStyle(LinearGradient(colors: [.primary, Theme.safetyOrange], startPoint: .leading, endPoint: .trailing))
                 Text("A kanban board for your markdown work cards, staffed by Claude Code agents.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
@@ -34,9 +39,9 @@ struct WelcomeView: View {
                     Label("Choose Vault Folder…", systemImage: "folder")
                         .frame(minWidth: 180)
                 }
-                .buttonStyle(.borderedProminent)
+                .glassButton(prominent: true)
                 .tint(Theme.safetyOrange)
-                .controlSize(.large)
+                .controlSize(.extraLarge)
 
                 Button {
                     do { try DemoFactory.install() } catch { model.report(error) }
@@ -45,14 +50,18 @@ struct WelcomeView: View {
                     Label("Try the Demo Factory", systemImage: "sparkles")
                         .frame(minWidth: 180)
                 }
-                .controlSize(.large)
+                .glassButton()
+                .controlSize(.extraLarge)
             }
             ToolCheck()
             LayoutHint()
         }
         .padding(40)
-        .frame(maxWidth: 640)
+        .glassPanel(cornerRadius: 32)
+        .frame(maxWidth: 680)
+        .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(FactoryBackdrop())
     }
 }
 

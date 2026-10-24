@@ -35,6 +35,7 @@ struct ConsoleView: View {
             }
         }
         .frame(minWidth: 720, minHeight: 480)
+        .background(FactoryBackdrop(animated: false))
         .onAppear { console.start(factory: factory) }
         .onDisappear { console.stop() }
     }
@@ -66,8 +67,10 @@ struct ConsoleView: View {
                     }
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 10)
-        .background(.bar)
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .glassPanel(cornerRadius: 18)
+        .padding([.horizontal, .top], 10)
+        .padding(.bottom, 8)
     }
 
     private var terminal: some View {
@@ -84,11 +87,15 @@ struct ConsoleView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .background(TerminalPalette.background)
+            .background(TerminalPalette.background.opacity(0.92))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay {
-                RoundedRectangle(cornerRadius: 0)
-                    .strokeBorder(terminalFocused ? Theme.safetyOrange.opacity(0.6) : .clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(terminalFocused ? Theme.safetyOrange.opacity(0.8) : Color.white.opacity(0.08),
+                                  lineWidth: terminalFocused ? 1.5 : 0.5)
             }
+            .shadow(color: terminalFocused ? Theme.safetyOrange.opacity(0.35) : .black.opacity(0.3), radius: 14)
+            .padding(.horizontal, 10)
             .onChange(of: console.revision) { proxy.scrollTo("bottom", anchor: .bottom) }
             .focusable(console.canSend)
             .focused($terminalFocused)
@@ -127,32 +134,37 @@ struct ConsoleView: View {
             Text(terminalFocused ? "Typing goes to the agent" : "Click the terminal to type into it, or:")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
-            ForEach([("↑", NamedKey.up), ("↓", .down), ("←", .left), ("→", .right),
-                     ("⏎", .enter), ("esc", .escape), ("tab", .tab), ("⌃C", .interrupt)], id: \.1) { label, key in
-                Button(label) { console.send(key) }
-                    .font(.caption.monospaced())
-                    .controlSize(.small)
+            HStack(spacing: 4) {
+                ForEach([("↑", NamedKey.up), ("↓", .down), ("←", .left), ("→", .right),
+                         ("⏎", .enter), ("esc", .escape), ("tab", .tab), ("⌃C", .interrupt)], id: \.1) { label, key in
+                    Button(label) { console.send(key) }
+                        .font(.caption.monospaced())
+                        .controlSize(.small)
+                        .glassButton()
+                }
             }
+            .glassGroup(spacing: 4)
         }
-        .padding(.horizontal, 12).padding(.vertical, 6)
-        .background(.bar)
+        .padding(.horizontal, 16).padding(.top, 8)
     }
 
     private func composer(_ job: Job) -> some View {
         HStack(spacing: 8) {
             TextField(console.canSend ? "Message the agent — ⏎ sends (empty sends Enter)" : "This job isn’t interactive or has ended",
                       text: $message, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 8)
                 .lineLimit(1...6)
                 .disabled(!console.canSend)
                 .onSubmit(send)
             Button("Send", systemImage: "paperplane.fill", action: send)
-                .buttonStyle(.borderedProminent)
+                .glassButton(prominent: true)
                 .tint(Theme.safetyOrange)
                 .disabled(!console.canSend)
         }
-        .padding(12)
-        .background(.bar)
+        .padding(.leading, 6).padding(6)
+        .glassPanel(cornerRadius: 22)
+        .padding(10)
     }
 
     private func send() {
@@ -189,12 +201,9 @@ struct QuestionPanel: View {
                                 Image(systemName: "arrowtriangle.left.fill").font(.caption2).foregroundStyle(Theme.safetyOrange)
                             }
                         }
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(option.pointed ? Theme.safetyOrange.opacity(0.14) : Color.primary.opacity(0.04),
-                                    in: RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(option.pointed ? Theme.safetyOrange.opacity(0.6) : Color.primary.opacity(0.08)))
-                        .contentShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(.horizontal, 14).padding(.vertical, 9)
+                        .contentShape(Capsule())
+                        .glassCapsule(tint: option.pointed ? Theme.safetyOrange : nil, interactive: true)
                     }
                     .buttonStyle(.plain)
                     .keyboardShortcut(option.number < 10 ? KeyboardShortcut(KeyEquivalent(Character("\(option.number)")), modifiers: .command) : nil)
@@ -202,14 +211,14 @@ struct QuestionPanel: View {
             }
             HStack {
                 if question.multiSelect {
-                    Button("Submit Selections", action: submit).buttonStyle(.borderedProminent).tint(Theme.safetyOrange)
+                    Button("Submit Selections", action: submit).glassButton(prominent: true).tint(Theme.safetyOrange)
                 }
                 Text("⌘1–⌘9 picks an option · or type your own answer below")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .padding(14)
-        .background(.thinMaterial)
-        .overlay(alignment: .top) { HazardStripes(animated: false).frame(height: 3).opacity(0.7) }
+        .padding(16)
+        .glassPanel(cornerRadius: 20, tint: Theme.hazardYellow.opacity(0.4))
+        .padding(.horizontal, 10).padding(.top, 10)
     }
 }

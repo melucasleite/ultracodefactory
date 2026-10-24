@@ -66,9 +66,9 @@ public actor JobStore {
                     changed = true
                 }
             case .headless:
-                let alive = job.pid.map {
+                let alive = LiveProcesses.shared.isRunning(job.id) || (job.pid.map {
                     ProcessInspector.isOurs(pid: $0, startedAt: job.startedAt, executableName: executableName)
-                } ?? false
+                } ?? false)
                 if !alive {
                     jobs[index].state = (job.exitCode ?? 0) == 0 ? .completed : .failed
                     jobs[index].finishedAt = jobs[index].finishedAt ?? .now
