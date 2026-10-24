@@ -323,7 +323,9 @@ final class FactoryModel {
     /// Asks a headless agent to propose a starter backlog into Proposed.
     @discardableResult
     func planBacklog(for project: Project, fromExistingCode: Bool) async -> Job? {
-        let prompt = BacklogPlanner.prompt(cardsFolder: project.cardsRoot, fromExistingCode: fromExistingCode)
+        let prompt = BacklogPlanner.prompt(
+            cardsFolder: project.cardsRoot, references: project.allowedDirectories, fromExistingCode: fromExistingCode
+        )
         let label = fromExistingCode ? "Planning a starter backlog from the code" : "Planning a starter backlog from PROJECT.md"
         return await launch(.plan, project: project.id, fullPrompt: prompt, label: label)
     }

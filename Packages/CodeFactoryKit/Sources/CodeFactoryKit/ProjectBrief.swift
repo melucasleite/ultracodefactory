@@ -71,17 +71,25 @@ public struct ProjectBrief: Codable, Hashable, Sendable {
 /// The built-in prompt for the agent that proposes a starter backlog. It
 /// needs no user skills, so a fresh install can plan on its own.
 public enum BacklogPlanner {
-    public static func prompt(cardsFolder: URL, today: Date = .now, fromExistingCode: Bool) -> String {
+    /// The most cards one planning run may write.
+    public static let maximumCards = 50
+
+    public static func prompt(cardsFolder: URL, references: [URL] = [], today: Date = .now, fromExistingCode: Bool) -> String {
         let day = today.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day())
         let source = fromExistingCode
             ? "Explore this repository to understand what it does, how it is built and what looks unfinished, fragile or missing. Read PROJECT.md or README.md if present."
             : "Read PROJECT.md: it is the brief for a brand-new project, so the repository is otherwise empty."
+        let referenceNote = references.isEmpty ? "" : """
+
+        You can also read these folders, which the brief may mention by a shorter or older path. Use them as references; do not modify them:
+        \(references.map { "- " + $0.path }.joined(separator: "\n"))
+        """
         return """
         You are planning the backlog for this project. Do not write any application code and do not change any file outside the cards folder.
 
-        \(source)
+        \(source)\(referenceNote)
 
-        Then write between 8 and 15 work cards, one markdown file each, into this folder (it already exists):
+        Then write as many work cards as the project genuinely needs, between 10 and \(maximumCards), one markdown file each, into this folder (it already exists):
         \(cardsFolder.appending(path: CardStatus.proposed.rawValue).path)
 
         Each file is named in kebab-case after its title, ends in .md, never overwrites an existing file, and looks like this:

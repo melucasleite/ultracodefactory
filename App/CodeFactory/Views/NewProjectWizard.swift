@@ -319,7 +319,7 @@ struct NewProjectWizard: View {
             Toggle(isOn: $planBacklog) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Plan a starter backlog now")
-                    Text("A headless agent reads the brief and fills Proposed with 8–15 cards for you to review.")
+                    Text("A headless agent reads the brief and fills Proposed with a starter backlog (up to 50 cards) for you to review.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }

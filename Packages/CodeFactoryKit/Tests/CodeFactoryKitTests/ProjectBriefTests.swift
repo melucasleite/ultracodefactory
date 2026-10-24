@@ -31,6 +31,11 @@ import Testing
         #expect(prompt.contains("/tmp/app/.codefactory/proposed"))
         #expect(prompt.contains("PROJECT.md"))
         #expect(prompt.contains("status: proposed"))
+        #expect(prompt.contains("between 10 and 50"))
+        #expect(!prompt.contains("You can also read"))
+        let withRefs = BacklogPlanner.prompt(cardsFolder: URL(filePath: "/tmp/app/.codefactory"),
+                                             references: [URL(filePath: "/Users/me/projects/reviewdesk")], fromExistingCode: false)
+        #expect(withRefs.contains("- /Users/me/projects/reviewdesk"))
     }
 
     @Test func scaffoldCreatesARepoAndRefusesNonEmptyFolders() async throws {
