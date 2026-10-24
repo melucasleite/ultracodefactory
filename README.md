@@ -86,6 +86,25 @@ What Code Factory believes, and builds for.
   <img src="docs/screenshots/console.jpg" alt="An agent console: Claude's triage question shown in the terminal and again as three native glass buttons" width="80%">
 </p>
 
+## The magic
+
+Little moments that make one person feel like a crew.
+
+- ✨ **It finishes your sentences.** In the New Project wizard, pitch the
+  idea in a sentence and click **Suggest the rest from my pitch**. A quick,
+  read-only Claude call pre-selects platforms, stack, features and style as
+  chips you can change.
+- 🏗️ **It builds the factory for you.** Finish the wizard and watch a
+  checklist tick by: folder, `PROJECT.md`, git, board, then a planner agent
+  that drafts your first backlog into Proposed.
+- 📥 **Work arrives on its own.** Cards an agent writes drop onto the board
+  with a spring and a short glow. No refresh: the board watches the disk.
+- 🔀 **Review is one click away.** When a card links its pull request (the
+  example `/work` skill adds it), the tile shows a **Review PR #n** chip.
+- ☕ **It tells you what you missed.** Come back after a while and a glass
+  banner sums it up: what shipped, what's waiting on you, and how many PRs are
+  ready for review.
+
 ## Quick start
 
 You'll need **macOS 15 or later**, [Claude Code](https://docs.claude.com/en/docs/claude-code),
