@@ -148,47 +148,48 @@ struct CardTile: View {
                 if let priority = card.priority {
                     Label(priority, systemImage: "flag.fill")
                         .font(.caption2.weight(.semibold)).foregroundStyle(.orange).labelStyle(.titleAndIcon)
+                        .lineLimit(1)
                 }
                 if let id = card.cardID {
-                    Text("#\(id)").font(.caption2.monospaced()).foregroundStyle(.secondary)
+                    Text("#\(id)").font(.caption2.monospaced()).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 0)
-                if let pr = card.pullRequest, let number = card.pullRequestNumber {
-                    Button {
-                        Finder.open(pr)
-                    } label: {
-                        Label("Review PR #\(number)", systemImage: "arrow.triangle.pull")
-                            .font(.caption2.weight(.bold))
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .foregroundStyle(.green)
-                            .glassCapsule(tint: .green, interactive: true)
-                    }
-                    .buttonStyle(.plain)
-                    .help(pr.absoluteString)
-                }
                 if let updated = card.updated {
                     Text(updated).font(.caption2.monospacedDigit()).foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .layoutPriority(-1)
                 }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            if let pr = card.pullRequest, let number = card.pullRequestNumber {
+                Button {
+                    Finder.open(pr)
+                } label: {
+                    Label("Review PR #\(number)", systemImage: "arrow.triangle.pull")
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 5)
+                        .foregroundStyle(.green)
+                        .glassCapsule(tint: .green, interactive: true)
+                }
+                .buttonStyle(.plain)
+                .help(pr.absoluteString)
             }
         }
         .padding(12)
-        .glassPanel(cornerRadius: 14, interactive: true)
-        .overlay {
+        .glassPanel(cornerRadius: 14, tint: fresh ? Theme.safetyOrange : nil, interactive: true)
+        .overlay(alignment: .topTrailing) {
             if fresh {
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(Theme.safetyOrange.gradient, lineWidth: 1.5)
-                    .shadow(color: Theme.safetyOrange, radius: 10)
-                    .overlay(alignment: .topTrailing) {
-                        Image(systemName: "sparkles")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(Theme.safetyOrange)
-                            .symbolEffect(.bounce, options: .repeat(2))
-                            .padding(6)
-                    }
-                    .transition(.opacity)
+                Image(systemName: "sparkles")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.safetyOrange)
+                    .symbolEffect(.bounce, options: .repeat(2))
+                    .padding(6)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
-        .animation(.easeOut(duration: 0.8), value: fresh)
+        .animation(.easeOut(duration: 1.2), value: fresh)
         .shadow(color: .black.opacity(hovering ? 0.25 : 0.1), radius: hovering ? 14 : 5, y: hovering ? 8 : 2)
         .scaleEffect(hovering ? 1.025 : 1)
         .animation(.spring(duration: 0.3, bounce: 0.35), value: hovering)
@@ -239,6 +240,8 @@ struct KindChip: View {
         let color = Theme.color(forKind: kind)
         Text(kind)
             .font(.system(.caption2, design: .rounded).weight(.bold))
+            .lineLimit(1)
+            .fixedSize()
             .foregroundStyle(color)
             .padding(.horizontal, 7).padding(.vertical, 2.5)
             .background(color.opacity(0.16), in: Capsule())

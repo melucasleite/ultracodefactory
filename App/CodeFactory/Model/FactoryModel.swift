@@ -252,13 +252,19 @@ final class FactoryModel {
     }
 
     @discardableResult
-    func launch(_ action: LaunchAction, project projectID: String? = nil, text: String = "", fullPrompt: String? = nil) async -> Job? {
+    func launch(
+        _ action: LaunchAction,
+        project projectID: String? = nil,
+        text: String = "",
+        fullPrompt: String? = nil,
+        label: String? = nil
+    ) async -> Job? {
         guard let id = projectID ?? selectedProject, let project = project(id) else { return nil }
         let config = launchConfiguration
         requestNotificationPermissionIfNeeded()
         let prompt = fullPrompt ?? prompt(for: action, text: text)
         do {
-            let job: Job
+            var job: Job
             if action.isInteractive {
                 job = try await AgentLauncher.startInteractive(project: project, prompt: prompt, action: action.rawValue, config: config)
             } else {
@@ -266,6 +272,8 @@ final class FactoryModel {
                     Task { @MainActor in await self?.headlessExited(id, status: status) }
                 }
             }
+            // Show a short label instead of a long built-in prompt.
+            if let label { job.prompt = label }
             try await jobStore.add(job)
             lastStates[job.id] = job.state
             jobs = await jobStore.all()
@@ -280,7 +288,8 @@ final class FactoryModel {
     @discardableResult
     func planBacklog(for project: Project, fromExistingCode: Bool) async -> Job? {
         let prompt = BacklogPlanner.prompt(cardsFolder: project.cardsRoot, fromExistingCode: fromExistingCode)
-        return await launch(.plan, project: project.id, fullPrompt: prompt)
+        let label = fromExistingCode ? "Planning a starter backlog from the code" : "Planning a starter backlog from PROJECT.md"
+        return await launch(.plan, project: project.id, fullPrompt: prompt, label: label)
     }
 
     func stop(_ job: Job) async {
