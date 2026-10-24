@@ -48,6 +48,10 @@ final class FactoryModel {
     @ObservationIgnored private var scheduling = false
     @ObservationIgnored private var reportedStuck: Set<String> = []
     @ObservationIgnored private var lastPRCheck: [String: Date] = [:]
+    @ObservationIgnored private var nudgedFixers: Set<String> = []
+    /// How long a conflict fixer may run before it's interrupted and told to wrap up.
+    private let fixerPatience: TimeInterval = 6 * 60
+    @ObservationIgnored private let launchedAt = Date.now
     @ObservationIgnored private var activityObservers: [NSObjectProtocol] = []
 
     var prefs: Preferences { Preferences() }
@@ -509,6 +513,7 @@ final class FactoryModel {
             await watchPullRequests(in: project)
             let cards = project.board.listCards()
             await retireFinishedWorkers(in: project, cards: cards)
+            await nudgeSlowFixers(in: project)
             let mode = autoMode(for: project.id)
             guard mode.enabled else { continue }
             let active = workers(for: project.id)
@@ -611,6 +616,22 @@ final class FactoryModel {
         content.title = title
         content.body = body
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+    }
+
+    /// A fixer that's still busy after `fixerPatience` is usually stuck in a
+    /// long build or test run: interrupt that command once and tell it to wrap up.
+    private func nudgeSlowFixers(in project: Project) async {
+        guard let tmuxURL = prefs.tmux else { return }
+        let tmux = Tmux(binary: tmuxURL)
+        for job in workers(for: project.id) where job.action == LaunchAction.fixConflicts.rawValue && job.state == .running {
+            // After a relaunch, fixers already running get a fresh window rather than an instant interrupt.
+            guard Date.now.timeIntervalSince(max(job.startedAt, launchedAt)) > fixerPatience,
+                  let session = job.session, nudgedFixers.insert(job.id).inserted else { continue }
+            try? await tmux.send(.escape, to: session)
+            try? await Task.sleep(for: .seconds(1))
+            try? await tmux.type(AgentPrompts.wrapUpFix, to: session)
+            try? await tmux.send(.enter, to: session)
+        }
     }
 
     /// A worker is done once its card is in Waiting or Done and its agent is

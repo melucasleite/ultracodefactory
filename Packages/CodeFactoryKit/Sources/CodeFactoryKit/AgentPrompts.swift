@@ -78,6 +78,9 @@ public enum AgentPrompts {
         """
     }
 
+    /// Sent to a fixer that has run too long, after interrupting its current command.
+    public static let wrapUpFix = "Time to wrap up: stop any long-running tests or builds. CI runs the full suites on the PR. Finish resolving the conflicts, do one quick compile check of only what you touched, commit, push, and confirm the PR is mergeable."
+
     /// Resolve a pull request's merge conflicts without changing its scope.
     public static func fixConflicts(card: String, pullRequest: Int, branch: String, base: String, cardsFolder: URL) -> String {
         """
