@@ -108,6 +108,7 @@ import Testing
         let p = AgentPrompts.worker(card: "build-relay", branch: "codefactory/build-relay", cardsFolder: cards)
         #expect(p.contains("codefactory/build-relay"))
         #expect(p.contains("Work only on the card build-relay.md"))
+        #expect(p.contains("never wait for other processes"))
     }
 
     @Test func plannerAndMapperTalkAboutDependencies() {
