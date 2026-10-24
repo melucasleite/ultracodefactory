@@ -78,6 +78,10 @@ struct ColumnView: View {
                     }
                     ForEach(cards) { card in
                         CardTile(card: card, openCard: $openCard)
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.6, anchor: .top).combined(with: .opacity).combined(with: .offset(y: -30)),
+                                removal: .opacity.combined(with: .scale(scale: 0.9))
+                            ))
                     }
                     if cards.isEmpty && fabricating.isEmpty {
                         VStack(spacing: 6) {
@@ -107,6 +111,7 @@ struct ColumnView: View {
         }
         .shadow(color: targeted ? tint.opacity(0.45) : .clear, radius: 18)
         .animation(.spring(duration: 0.3, bounce: 0.3), value: targeted)
+        .animation(.spring(duration: 0.55, bounce: 0.4), value: cards.map(\.id))
         .dropDestination(for: CardReference.self) { refs, _ in
             for ref in refs { model.move(ref, to: status) }
             return !refs.isEmpty
@@ -121,6 +126,8 @@ struct CardTile: View {
     @Binding var openCard: Card?
     @State private var hovering = false
     @State private var confirmTrash = false
+
+    private var fresh: Bool { model.freshCards.contains(card.id) }
 
     var body: some View {
         let tint = Theme.color(for: card.status)
@@ -146,6 +153,19 @@ struct CardTile: View {
                     Text("#\(id)").font(.caption2.monospaced()).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
+                if let pr = card.pullRequest, let number = card.pullRequestNumber {
+                    Button {
+                        Finder.open(pr)
+                    } label: {
+                        Label("Review PR #\(number)", systemImage: "arrow.triangle.pull")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .foregroundStyle(.green)
+                            .glassCapsule(tint: .green, interactive: true)
+                    }
+                    .buttonStyle(.plain)
+                    .help(pr.absoluteString)
+                }
                 if let updated = card.updated {
                     Text(updated).font(.caption2.monospacedDigit()).foregroundStyle(.tertiary)
                 }
@@ -153,6 +173,22 @@ struct CardTile: View {
         }
         .padding(12)
         .glassPanel(cornerRadius: 14, interactive: true)
+        .overlay {
+            if fresh {
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(Theme.safetyOrange.gradient, lineWidth: 1.5)
+                    .shadow(color: Theme.safetyOrange, radius: 10)
+                    .overlay(alignment: .topTrailing) {
+                        Image(systemName: "sparkles")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Theme.safetyOrange)
+                            .symbolEffect(.bounce, options: .repeat(2))
+                            .padding(6)
+                    }
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.8), value: fresh)
         .shadow(color: .black.opacity(hovering ? 0.25 : 0.1), radius: hovering ? 14 : 5, y: hovering ? 8 : 2)
         .scaleEffect(hovering ? 1.025 : 1)
         .animation(.spring(duration: 0.3, bounce: 0.35), value: hovering)

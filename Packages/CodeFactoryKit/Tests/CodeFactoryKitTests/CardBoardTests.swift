@@ -98,3 +98,28 @@ import Testing
         #expect(store.load() == projects)
     }
 }
+
+@Suite struct PullRequestLinkTests {
+    @Test func findsTheLastPullRequestLink() {
+        let body = """
+        Superseded: https://github.com/acme/app/pull/12
+        Now: https://github.com/acme/app/pull/15.
+        """
+        let url = Card.pullRequestURL(in: body)
+        #expect(url?.absoluteString == "https://github.com/acme/app/pull/15")
+    }
+
+    @Test func understandsGitLab() {
+        #expect(Card.pullRequestURL(in: "see https://gitlab.com/acme/app/-/merge_requests/7")?.lastPathComponent == "7")
+    }
+
+    @Test func ignoresOtherLinks() {
+        #expect(Card.pullRequestURL(in: "https://github.com/acme/app/issues/3") == nil)
+    }
+
+    @Test func boardSurfacesTheLink() throws {
+        let board = CardBoard(root: FileManager.default.temporaryDirectory.appending(path: "cf-pr-\(UUID().uuidString)"), project: "p")
+        try board.create(title: "Ship it", status: .waiting, body: "PR: https://github.com/acme/app/pull/42")
+        #expect(board.listCards().first?.pullRequestNumber == "42")
+    }
+}

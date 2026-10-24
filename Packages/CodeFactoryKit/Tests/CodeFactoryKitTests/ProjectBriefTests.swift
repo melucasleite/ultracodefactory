@@ -46,3 +46,31 @@ import Testing
         }
     }
 }
+
+@Suite struct BriefSuggesterTests {
+    let platforms = ["Web app", "iOS"]
+    let styles = ["Minimal", "Playful"]
+    let looks = ["Dark first"]
+
+    @Test func parsesAReplyWrappedInProse() throws {
+        let reply = """
+        Sure! Here you go:
+        {"platforms": ["iOS", "Smartwatch"], "stack": ["SwiftUI", "  CloudKit  "], "features": ["Water reminders", "Plant journal"], "designStyle": "Playful", "appearance": "Neon"}
+        """
+        let s = try #require(BriefSuggester.parse(reply, platforms: platforms, styles: styles, appearances: looks))
+        #expect(s.platforms == ["iOS"])            // unknown platform dropped
+        #expect(s.stack == ["SwiftUI", "CloudKit"]) // trimmed
+        #expect(s.designStyle == "Playful")
+        #expect(s.appearance == nil)               // not an allowed value
+    }
+
+    @Test func garbageIsNil() {
+        #expect(BriefSuggester.parse("no json here", platforms: platforms, styles: styles, appearances: looks) == nil)
+    }
+
+    @Test func promptListsTheAllowedValues() {
+        let p = BriefSuggester.prompt(name: "X", summary: "Y", platforms: platforms, styles: styles, appearances: looks)
+        #expect(p.contains("\"Web app\", \"iOS\""))
+        #expect(p.contains("ONLY a JSON object"))
+    }
+}

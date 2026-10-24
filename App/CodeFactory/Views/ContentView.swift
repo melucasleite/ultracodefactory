@@ -38,7 +38,13 @@ struct ContentView: View {
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .overlay(alignment: .top) { errorBanner }
+            .overlay(alignment: .top) {
+                VStack(spacing: 0) {
+                    errorBanner
+                    if let report = model.awayReport { AwayBanner(report: report) }
+                }
+                .animation(.spring(duration: 0.5, bounce: 0.3), value: model.awayReport)
+            }
             .animation(.spring(duration: 0.4, bounce: 0.2), value: showJobs)
         }
         .background(FactoryBackdrop())
@@ -183,4 +189,44 @@ struct BoardActions {
 
 extension FocusedValues {
     @Entry var boardActions: BoardActions?
+}
+
+/// "While you were away…": what the crew got done.
+private struct AwayBanner: View {
+    @Environment(FactoryModel.self) private var model
+    let report: AwayReport
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: report.pullRequests > 0 ? "arrow.triangle.pull" : "cup.and.saucer.fill")
+                .font(.title2)
+                .foregroundStyle(Theme.safetyOrange)
+                .symbolEffect(.bounce, options: .nonRepeating)
+                .frame(width: 44, height: 44)
+                .glassPanel(cornerRadius: 12, tint: Theme.safetyOrange)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("While you were away · \(report.since.formatted(.relative(presentation: .named)))")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(report.headline)
+                    .font(.system(.headline, design: .rounded))
+                if !report.details.isEmpty {
+                    Text(report.details.joined(separator: " · "))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Button("Dismiss", systemImage: "xmark") { model.awayReport = nil }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .glassPanel(cornerRadius: 22)
+        .frame(maxWidth: 620)
+        .padding(12)
+        .shadow(color: Theme.safetyOrange.opacity(0.25), radius: 20)
+        .transition(.move(edge: .top).combined(with: .opacity))
+    }
 }

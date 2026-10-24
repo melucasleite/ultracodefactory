@@ -143,3 +143,70 @@ public enum ProjectScaffold {
         return project
     }
 }
+
+/// Turns a one-paragraph pitch into suggested wizard answers, using a quick
+/// read-only `claude -p` call. Everything it returns is a suggestion: the
+/// wizard shows it as pre-selected chips you can change.
+public enum BriefSuggester {
+    public struct Suggestion: Codable, Equatable, Sendable {
+        public var platforms: [String] = []
+        public var stack: [String] = []
+        public var features: [String] = []
+        public var designStyle: String?
+        public var appearance: String?
+    }
+
+    public static func prompt(name: String, summary: String, platforms: [String], styles: [String], appearances: [String]) -> String {
+        """
+        A solo builder is starting a new software project and described it like this.
+
+        Name: \(name)
+        Pitch: \(summary)
+
+        Suggest how to build it. Reply with ONLY a JSON object, no prose and no code fence, shaped like:
+        {"platforms": [...], "stack": [...], "features": [...], "designStyle": "...", "appearance": "..."}
+
+        Rules:
+        - "platforms": one or more of exactly these strings: \(platforms.map { "\"\($0)\"" }.joined(separator: ", "))
+        - "stack": 1 to 4 mainstream, well-supported technologies that fit those platforms.
+        - "features": 5 to 8 short feature names (2 to 5 words each) a first version needs, most important first.
+        - "designStyle": exactly one of: \(styles.map { "\"\($0)\"" }.joined(separator: ", "))
+        - "appearance": exactly one of: \(appearances.map { "\"\($0)\"" }.joined(separator: ", "))
+        """
+    }
+
+    /// Pulls the first JSON object out of a model reply and keeps only
+    /// values the wizard understands.
+    public static func parse(_ reply: String, platforms: [String], styles: [String], appearances: [String]) -> Suggestion? {
+        guard let start = reply.firstIndex(of: "{"), let end = reply.lastIndex(of: "}"), start < end,
+              let data = String(reply[start...end]).data(using: .utf8),
+              var s = try? JSONDecoder().decode(Suggestion.self, from: data)
+        else { return nil }
+        s.platforms = s.platforms.filter(platforms.contains)
+        s.stack = Array(s.stack.map(clean).filter { !$0.isEmpty }.prefix(4))
+        s.features = Array(s.features.map(clean).filter { !$0.isEmpty }.prefix(8))
+        if let style = s.designStyle, !styles.contains(style) { s.designStyle = nil }
+        if let look = s.appearance, !appearances.contains(look) { s.appearance = nil }
+        return s
+    }
+
+    /// Runs the suggestion in an empty scratch folder with read-only permissions.
+    public static func suggest(
+        name: String, summary: String, platforms: [String], styles: [String], appearances: [String], claude: URL
+    ) async throws -> Suggestion? {
+        let scratch = FileManager.default.temporaryDirectory.appending(path: "codefactory-suggest-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let result = try await ProcessRunner.run(
+            claude,
+            ["-p", prompt(name: name, summary: summary, platforms: platforms, styles: styles, appearances: appearances),
+             "--permission-mode", PermissionMode.plan.rawValue],
+            currentDirectory: scratch
+        )
+        return parse(result.stdout, platforms: platforms, styles: styles, appearances: appearances)
+    }
+
+    private static func clean(_ s: String) -> String {
+        String(s.trimmingCharacters(in: .whitespacesAndNewlines).prefix(60))
+    }
+}

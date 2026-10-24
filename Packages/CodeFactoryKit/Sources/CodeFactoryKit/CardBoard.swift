@@ -80,7 +80,8 @@ public struct CardBoard: Sendable {
                     cardID: fm.fields["id"].nonEmpty,
                     kind: fm.fields["kind"].nonEmpty,
                     updated: fm.fields["updated"].nonEmpty,
-                    priority: fm.fields["priority"].nonEmpty
+                    priority: fm.fields["priority"].nonEmpty,
+                    pullRequest: fm.fields["pr"].flatMap(URL.init(string:)) ?? Card.pullRequestURL(in: fm.body)
                 ))
             }
         }

@@ -1,3 +1,4 @@
+import AppKit
 import CodeFactoryKit
 import Foundation
 import Observation
@@ -12,10 +13,14 @@ final class FactoryModel {
     /// Open (not done / won't do) card counts per project id, for the sidebar.
     private(set) var openCounts: [String: Int] = [:]
     private(set) var cards: [Card] = []
+    /// Cards that just appeared (written by an agent, say), for a moment of glow.
+    private(set) var freshCards: Set<String> = []
     private(set) var jobs: [Job] = []
     var errorMessage: String?
     /// Drives the New Project sheet from anywhere (sidebar, welcome, menu).
     var showingNewProject = false
+    /// What happened while you were away; shown once when you come back.
+    var awayReport: AwayReport?
 
     /// The selected project's id.
     var selectedProject: String? {
@@ -35,6 +40,8 @@ final class FactoryModel {
     @ObservationIgnored private var watcher: DirectoryWatcher?
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var lastStates: [String: Job.State] = [:]
+    @ObservationIgnored private var leftAt: Date?
+    @ObservationIgnored private var activityObservers: [NSObjectProtocol] = []
 
     var prefs: Preferences { Preferences() }
 
@@ -43,6 +50,7 @@ final class FactoryModel {
         projects = projectStore.load()
         selectedProject = UserDefaults.standard.string(forKey: Pref.selectedProject)
         projectsChanged()
+        observeAppActivity()
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refreshJobs()
@@ -146,7 +154,20 @@ final class FactoryModel {
     }
 
     func loadCards() {
-        cards = selected?.board.listCards() ?? []
+        let next = selected?.board.listCards() ?? []
+        // Anything new within the same project gets a short welcome glow.
+        let previous = Set(cards.map(\.id))
+        if let first = next.first, cards.first?.project == first.project, !previous.isEmpty {
+            let arrived = Set(next.map(\.id)).subtracting(previous)
+            if !arrived.isEmpty {
+                freshCards.formUnion(arrived)
+                Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(4))
+                    self?.freshCards.subtract(arrived)
+                }
+            }
+        }
+        cards = next
     }
 
     // MARK: Cards
@@ -305,6 +326,36 @@ final class FactoryModel {
         if updated != jobs { jobs = updated }
     }
 
+    // MARK: While you were away
+
+    private func observeAppActivity() {
+        let center = NotificationCenter.default
+        activityObservers = [
+            center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.leftAt = .now }
+            },
+            center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { Task { await self?.cameBack() } }
+            },
+        ]
+    }
+
+    private func cameBack() async {
+        guard let leftAt else { return }
+        self.leftAt = nil
+        guard Date.now.timeIntervalSince(leftAt) >= AwayReport.minimumAbsence else { return }
+        await refreshJobs()
+        let report = AwayReport(
+            since: leftAt,
+            finished: jobs.filter { $0.state == .completed && ($0.finishedAt ?? .distantPast) > leftAt }.count,
+            failed: jobs.filter { $0.state == .failed && ($0.finishedAt ?? .distantPast) > leftAt }.count,
+            waiting: waitingJobs.count,
+            pullRequests: projects.flatMap { $0.board.listCards() }
+                .filter { $0.pullRequest != nil && $0.status == .waiting }.count
+        )
+        if !report.isEmpty { awayReport = report }
+    }
+
     // MARK: Notifications
 
     private func announce(_ job: Job, from previous: Job.State) {
@@ -337,5 +388,32 @@ final class FactoryModel {
 
     func report(_ error: Error) {
         errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+    }
+}
+
+/// A summary of the factory's work since you last looked.
+struct AwayReport: Equatable {
+    static let minimumAbsence: TimeInterval = 5 * 60
+
+    var since: Date
+    var finished: Int
+    var failed: Int
+    var waiting: Int
+    var pullRequests: Int
+
+    var isEmpty: Bool { finished + failed + waiting + pullRequests == 0 }
+
+    var headline: String {
+        pullRequests > 0 ? "\(pullRequests) pull request\(pullRequests == 1 ? "" : "s") ready for review"
+            : waiting > 0 ? "\(waiting) agent\(waiting == 1 ? " is" : "s are") waiting for you"
+            : "The line kept moving"
+    }
+
+    var details: [String] {
+        var out: [String] = []
+        if finished > 0 { out.append("\(finished) job\(finished == 1 ? "" : "s") finished") }
+        if waiting > 0, pullRequests > 0 { out.append("\(waiting) waiting for you") }
+        if failed > 0 { out.append("\(failed) failed") }
+        return out
     }
 }

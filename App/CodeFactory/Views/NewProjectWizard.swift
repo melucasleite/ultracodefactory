@@ -35,6 +35,16 @@ struct NewProjectWizard: View {
     @State private var planBacklog = true
     @State private var working = false
     @State private var error: String?
+    @State private var suggesting = false
+    @State private var suggested = false
+    @State private var buildLog: [BuildStep] = []
+
+    struct BuildStep: Identifiable, Equatable {
+        let id: Int
+        let label: String
+        let symbol: String
+        var done = false
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -59,6 +69,9 @@ struct NewProjectWizard: View {
             footer.padding(16)
         }
         .frame(width: 680, height: 580)
+        .overlay {
+            if !buildLog.isEmpty { finale.transition(.opacity) }
+        }
         .animation(.spring(duration: 0.35, bounce: 0.15), value: path)
         .animation(.spring(duration: 0.35, bounce: 0.15), value: step)
     }
@@ -176,6 +189,54 @@ struct NewProjectWizard: View {
                 .padding(10)
                 .frame(minHeight: 160)
                 .glassPanel(cornerRadius: 12)
+            HStack(spacing: 12) {
+                Button {
+                    Task { await suggest() }
+                } label: {
+                    Label(suggesting ? "Thinking…" : "Suggest the rest from my pitch", systemImage: "sparkles")
+                        .symbolEffect(.pulse, options: .repeat(.continuous), isActive: suggesting)
+                }
+                .glassButton()
+                .tint(Theme.safetyOrange)
+                .disabled(suggesting || brief.summary.trimmingCharacters(in: .whitespacesAndNewlines).count < 12
+                          || model.prefs.claude == nil)
+                if suggesting { ProgressView().controlSize(.small) }
+                if suggested {
+                    Label("Platforms, stack, features and style pre-filled. Tweak anything.", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                }
+            }
+            .animation(.spring, value: suggested)
+        }
+    }
+
+    private func suggest() async {
+        guard let claude = model.prefs.claude else { return }
+        suggesting = true
+        error = nil
+        defer { suggesting = false }
+        do {
+            guard let s = try await BriefSuggester.suggest(
+                name: brief.name, summary: brief.summary,
+                platforms: WizardOptions.platforms.map(\.name),
+                styles: WizardOptions.styles, appearances: WizardOptions.appearances,
+                claude: claude
+            ) else {
+                error = "Couldn’t read a suggestion this time. Fill the steps in yourself, or try again."
+                return
+            }
+            withAnimation(.spring) {
+                if !s.platforms.isEmpty { brief.platforms = s.platforms }
+                if !s.stack.isEmpty { brief.stack = s.stack }
+                if !s.features.isEmpty { brief.features = s.features }
+                brief.designStyle = s.designStyle ?? brief.designStyle
+                brief.appearance = s.appearance ?? brief.appearance
+                suggested = true
+            }
+        } catch {
+            self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 
@@ -274,6 +335,51 @@ struct NewProjectWizard: View {
         }
     }
 
+    // MARK: Finale
+
+    private var finale: some View {
+        ZStack {
+            FactoryBackdrop()
+            VStack(spacing: 22) {
+                let allDone = buildLog.allSatisfy(\.done)
+                Image(systemName: allDone ? "checkmark.seal.fill" : "gearshape.2.fill")
+                    .font(.system(size: 54))
+                    .foregroundStyle(allDone ? Color.green : Theme.safetyOrange)
+                    .shadow(color: (allDone ? Color.green : Theme.safetyOrange).opacity(0.7), radius: 20)
+                    .symbolEffect(.rotate, options: .repeat(.continuous), isActive: !allDone)
+                    .contentTransition(.symbolEffect(.replace))
+                Text(allDone ? "Your factory is open" : "Building \(brief.name)…")
+                    .font(.system(.title2, design: .rounded).weight(.bold))
+                    .contentTransition(.opacity)
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(buildLog) { step in
+                        HStack(spacing: 12) {
+                            Image(systemName: step.done ? "checkmark.circle.fill" : step.symbol)
+                                .foregroundStyle(step.done ? Color.green : Color.secondary)
+                                .contentTransition(.symbolEffect(.replace))
+                                .frame(width: 22)
+                            Text(step.label).foregroundStyle(step.done ? .primary : .secondary)
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .padding(20)
+                .frame(width: 360, alignment: .leading)
+                .glassPanel(cornerRadius: 20)
+            }
+        }
+        .animation(.spring(duration: 0.4, bounce: 0.35), value: buildLog)
+    }
+
+    private func log(_ label: String, _ symbol: String) {
+        buildLog.append(BuildStep(id: buildLog.count, label: label, symbol: symbol))
+    }
+
+    private func finishStep() async {
+        if let index = buildLog.firstIndex(where: { !$0.done }) { buildLog[index].done = true }
+        try? await Task.sleep(for: .milliseconds(380))
+    }
+
     // MARK: Footer
 
     private var footer: some View {
@@ -351,12 +457,27 @@ struct NewProjectWizard: View {
             working = true
             defer { working = false }
             do {
+                log("Creating \(CardBoard.slug(brief.name))/", "folder")
+                log("Writing the brief, PROJECT.md", "doc.text")
+                log("Starting a git repository", "arrow.triangle.branch")
+                log("Opening the board", "rectangle.split.3x1")
+                if planBacklog { log("Planner clocking in", "list.bullet.clipboard") }
                 let created = try await ProjectScaffold.create(in: parentFolder, brief: currentBrief)
                 WizardDefaults.parentFolder = parentFolder
-                guard let project = model.addProject(repository: created.repository) else { return }
-                if planBacklog { await model.planBacklog(for: project, fromExistingCode: false) }
+                for _ in 0..<3 { await finishStep() }
+                guard let project = model.addProject(repository: created.repository) else {
+                    buildLog = []
+                    return
+                }
+                await finishStep()
+                if planBacklog {
+                    await model.planBacklog(for: project, fromExistingCode: false)
+                    await finishStep()
+                }
+                try? await Task.sleep(for: .milliseconds(900))
                 dismiss()
             } catch {
+                buildLog = []
                 self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             }
         }

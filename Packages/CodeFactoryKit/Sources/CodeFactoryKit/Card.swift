@@ -10,6 +10,8 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
     public var kind: String?
     public var updated: String?
     public var priority: String?
+    /// The most recent pull request linked from the card body, if any.
+    public var pullRequest: URL?
 
     /// Stable identity across a single listing: status folder plus filename.
     public var id: String { "\(project)/\(status.rawValue)/\(file)" }
@@ -22,7 +24,8 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
         cardID: String? = nil,
         kind: String? = nil,
         updated: String? = nil,
-        priority: String? = nil
+        priority: String? = nil,
+        pullRequest: URL? = nil
     ) {
         self.project = project
         self.status = status
@@ -32,6 +35,18 @@ public struct Card: Identifiable, Hashable, Codable, Sendable {
         self.kind = kind
         self.updated = updated
         self.priority = priority
+        self.pullRequest = pullRequest
+    }
+
+    /// The pull request number, for display ("#42").
+    public var pullRequestNumber: String? {
+        pullRequest.map(\.lastPathComponent)
+    }
+
+    /// Finds the last GitHub pull request or GitLab merge request URL in `text`.
+    public static func pullRequestURL(in text: String) -> URL? {
+        let pattern = /https:\/\/[A-Za-z0-9.-]+\/[A-Za-z0-9._\/-]+\/(?:pull|merge_requests)\/\d+/
+        return text.matches(of: pattern).last.flatMap { URL(string: String($0.output)) }
     }
 }
 
