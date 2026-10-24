@@ -1,11 +1,9 @@
 import CodeFactoryKit
 import SwiftUI
 
-/// First-run screen: point the factory at a vault, or try the demo.
+/// First-run screen: add a project, start a new one, or try the demo.
 struct WelcomeView: View {
     @Environment(FactoryModel.self) private var model
-    @AppStorage(Pref.vaultPath) private var vaultPath = ""
-    @AppStorage(Pref.workFolder) private var workFolder = "Work"
 
     var body: some View {
         VStack(spacing: 22) {
@@ -20,23 +18,16 @@ struct WelcomeView: View {
                 Text("Code Factory")
                     .font(.system(size: 44, weight: .heavy, design: .rounded))
                     .foregroundStyle(LinearGradient(colors: [.primary, Theme.safetyOrange], startPoint: .leading, endPoint: .trailing))
-                Text("A kanban board for your markdown work cards, staffed by Claude Code agents.")
+                Text("Write the backlog. Grab a coffee. Come back to pull requests.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            if !vaultPath.isEmpty {
-                Label("No “\(workFolder)” folder found in \(vaultPath)", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .font(.callout)
-            }
             HStack(spacing: 12) {
                 Button {
-                    if let url = Finder.chooseFolder(message: "Choose the folder that contains your “\(workFolder)” folder", startingAt: vaultPath) {
-                        vaultPath = url.path
-                    }
+                    model.showingNewProject = true
                 } label: {
-                    Label("Choose Vault Folder…", systemImage: "folder")
+                    Label("New Project…", systemImage: "plus")
                         .frame(minWidth: 180)
                 }
                 .glassButton(prominent: true)
@@ -44,8 +35,7 @@ struct WelcomeView: View {
                 .controlSize(.extraLarge)
 
                 Button {
-                    do { try DemoFactory.install() } catch { model.report(error) }
-                    model.configureVault()
+                    do { model.addProject(repository: try DemoFactory.install()) } catch { model.report(error) }
                 } label: {
                     Label("Try the Demo Factory", systemImage: "sparkles")
                         .frame(minWidth: 180)
@@ -53,6 +43,9 @@ struct WelcomeView: View {
                 .glassButton()
                 .controlSize(.extraLarge)
             }
+            Text("Or drop a repository folder onto the sidebar.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
             ToolCheck()
             LayoutHint()
         }
@@ -90,17 +83,17 @@ private struct LayoutHint: View {
     var body: some View {
         GroupBox {
             Text("""
-            vault/
-            └─ Work/
-               └─ my-project/
-                  ├─ proposed/   todo/   picked-up/
-                  └─ waiting/    done/   wont-do/   ← one .md card per file
+            my-app/                 ← your repository
+            ├─ PROJECT.md           ← the brief agents read first
+            └─ .codefactory/
+               ├─ proposed/   todo/   picked-up/
+               └─ waiting/    done/   wont-do/   ← one .md card per file
             """)
             .font(.system(.caption, design: .monospaced))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("Expected layout").font(.caption.weight(.semibold))
+            Text("Cards live with your code").font(.caption.weight(.semibold))
         }
     }
 }

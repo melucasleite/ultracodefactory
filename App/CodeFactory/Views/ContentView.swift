@@ -29,7 +29,7 @@ struct ContentView: View {
         } detail: {
             HStack(spacing: 0) {
                 detail
-                if showJobs && model.vaultReady {
+                if showJobs && model.hasProjects {
                     JobsInspector()
                         .frame(width: 320)
                         .frame(maxHeight: .infinity, alignment: .top)
@@ -44,9 +44,12 @@ struct ContentView: View {
         .background(FactoryBackdrop())
         .toolbar { toolbar }
         .searchable(text: $search, placement: .toolbar, prompt: "Filter cards")
-        .navigationTitle(model.vaultReady ? (model.selectedProject ?? "Code Factory") : "Code Factory")
+        .navigationTitle(model.selected?.name ?? "Code Factory")
         .navigationSubtitle(subtitle)
         .sheet(item: $openCard) { CardDetailView(card: $0) }
+        .sheet(isPresented: Binding(get: { model.showingNewProject }, set: { model.showingNewProject = $0 })) {
+            NewProjectWizard()
+        }
         .sheet(item: $sheet) { sheet in
             switch sheet {
             case .createWork(let project): CreateWorkSheet(project: project)
@@ -58,19 +61,19 @@ struct ContentView: View {
             newCard: { sheet = .newCard },
             launch: { action in launch(action) },
             toggleJobs: { showJobs.toggle() },
-            enabled: model.vaultReady && model.selectedProject != nil
+            enabled: model.hasProjects && model.selectedProject != nil
         ))
     }
 
     private var subtitle: String {
-        guard model.vaultReady, model.selectedProject != nil else { return "" }
+        guard model.hasProjects, model.selectedProject != nil else { return "" }
         let open = model.cards.filter { $0.status != .done && $0.status != .wontDo }.count
         return "\(open) open · \(model.cards.count) total"
     }
 
     @ViewBuilder
     private var detail: some View {
-        if !model.vaultReady {
+        if !model.hasProjects {
             WelcomeView()
         } else if let project = model.selectedProject {
             BoardView(project: project, search: search, kindFilter: kindFilter, openCard: $openCard)
@@ -78,7 +81,7 @@ struct ContentView: View {
             ContentUnavailableView {
                 Label("No projects yet", systemImage: "shippingbox")
             } description: {
-                Text("Create a project folder in your vault’s work folder, or use **New Project** in the sidebar.")
+                Text("Add a repository you already have, or start something brand new.")
             }
             .background(FactoryBackdrop())
         }
@@ -110,7 +113,7 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        let enabled = model.vaultReady && model.selectedProject != nil
+        let enabled = model.hasProjects && model.selectedProject != nil
         ToolbarItem(placement: .primaryAction) {
             Button {
                 if let p = model.selectedProject { sheet = .createWork(p) }

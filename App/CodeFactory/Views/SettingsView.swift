@@ -4,38 +4,11 @@ import SwiftUI
 struct SettingsView: View {
     var body: some View {
         TabView {
-            Tab("Folders", systemImage: "folder") { FoldersSettings() }
             Tab("Agents", systemImage: "gearshape.2") { AgentSettings() }
             Tab("General", systemImage: "bell") { GeneralSettings() }
         }
         .frame(width: 560)
         .scenePadding()
-    }
-}
-
-private struct FoldersSettings: View {
-    @AppStorage(Pref.vaultPath) private var vaultPath = ""
-    @AppStorage(Pref.workFolder) private var workFolder = "Work"
-    @AppStorage(Pref.reposPath) private var reposPath = ""
-
-    var body: some View {
-        Form {
-            Section {
-                PathField(title: "Vault", path: $vaultPath, placeholder: "Choose…",
-                          message: "Choose the folder that contains your work folder")
-                TextField("Work folder", text: $workFolder, prompt: Text("Work"))
-            } footer: {
-                Text("Cards live at *vault/\(workFolder.isEmpty ? "Work" : workFolder)/project/status/card.md*. Works great with an Obsidian vault.")
-            }
-            Section {
-                PathField(title: "Repositories", path: $reposPath,
-                          placeholder: "Defaults to the vault’s parent folder",
-                          message: "Choose the folder that contains one repository per project")
-            } footer: {
-                Text("Agents for project *foo* run inside *repositories/foo*.")
-            }
-        }
-        .formStyle(.grouped)
     }
 }
 
@@ -101,32 +74,6 @@ private struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
-    }
-}
-
-private struct PathField: View {
-    let title: String
-    @Binding var path: String
-    let placeholder: String
-    let message: String
-
-    var body: some View {
-        LabeledContent(title) {
-            HStack {
-                Text(path.isEmpty ? placeholder : (path as NSString).abbreviatingWithTildeInPath)
-                    .foregroundStyle(path.isEmpty ? .secondary : .primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Button("Choose…") {
-                    if let url = Finder.chooseFolder(message: message, startingAt: path) { path = url.path }
-                }
-                if !path.isEmpty {
-                    Button("Clear", systemImage: "xmark.circle.fill") { path = "" }
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.borderless)
-                }
-            }
-        }
     }
 }
 

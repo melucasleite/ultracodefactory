@@ -45,6 +45,29 @@ the moment it needs you.
 No database, no account, no cloud. Your cards stay plain text, so they work
 just as well in Obsidian, your editor, `git` or `grep`.
 
+## Core tenets
+
+What Code Factory believes, and builds for.
+
+1. **The spec is the product. Code is an implementation detail.** The
+   brief, the cards and their acceptance criteria are what you own and care
+   about. Code is one way of meeting them: it can be rewritten, regenerated or
+   replaced, but a clear spec keeps its value.
+2. **Docs first, always.** Every project starts with a `PROJECT.md`, and every
+   change starts as a card that says what and why before anyone (or anything)
+   writes how. If it isn't written down, it isn't ready to build.
+3. **Specs live with the code.** Cards are markdown files in the repository,
+   versioned in the same commits as the work they describe. No database, no
+   SaaS, no lock-in: `git`, `grep` and your editor all just work.
+4. **You decide, agents do.** You set direction, answer questions and review.
+   Agents do the typing. The factory never merges for you.
+5. **Small cards, small PRs.** A card should fit in one reviewable pull
+   request. If it can't, it's two cards.
+6. **Review is the job.** Your time is the scarce resource, so it goes to
+   judgement (what to build, whether it's right) and not to keystrokes.
+7. **Safe by default.** Agents get the least permission that works. Anything
+   more is a deliberate choice you make, with the risk spelled out.
+
 ## Highlights
 
 |                             |                                                                                                                                                                                              |
@@ -57,7 +80,7 @@ just as well in Obsidian, your editor, `git` or `grep`.
 | 🧭 **Factory Floor**        | A floating glass panel listing every agent's state (working, waiting for you, finished, failed) with elapsed time and Stop.                                                                  |
 | 🔔 **Stays out of the way** | A menu bar status icon, plus notifications when an agent finishes or needs input.                                                                                                            |
 | ✅ **Real markdown**        | Rendered cards with clickable checkboxes that write straight back to the file, and a raw editor on ⌘S.                                                                                       |
-| 🧪 **Demo Factory**         | One click sets up a sample vault and a scratch repo, so you can try everything without touching real code.                                                                                   |
+| 🧪 **Demo Factory**         | One click sets up a scratch repo with sample cards, so you can try everything without touching real code.                                                                                    |
 
 <p align="center">
   <img src="docs/screenshots/console.jpg" alt="An agent console: Claude's triage question shown in the terminal and again as three native glass buttons" width="80%">
@@ -78,7 +101,9 @@ make run
 
 `make run` generates the Xcode project, builds a Debug app and launches it.
 The app is signed ad hoc, so you don't need an Apple developer account. On
-first launch, choose your vault folder or click **Try the Demo Factory**.
+first launch, click **New Project** to add a repository you already have or
+start a brand-new one, or click **Try the Demo Factory**. You can also drop a
+repository folder straight onto the sidebar.
 
 | Command        | What it does                                         |
 | -------------- | ---------------------------------------------------- |
@@ -90,21 +115,36 @@ first launch, choose your vault folder or click **Try the Demo Factory**.
 
 ## How it works
 
-### The vault
+### Projects
+
+A project is just a repository. Its cards live inside it, next to the code,
+so they're versioned with everything else and agents find them right where
+they work:
 
 ```
-vault/
-└─ Work/                       ← the "work folder" (configurable)
-   └─ my-project/              ← one folder per project
-      ├─ proposed/
-      ├─ todo/
-      ├─ picked-up/
-      ├─ waiting/
-      ├─ done/
-      └─ wont-do/              ← one card per .md file
-repos/
-└─ my-project/                 ← agents for "my-project" run here
+my-app/                  ← your repository; agents run here
+├─ PROJECT.md            ← the brief agents read first (new projects)
+└─ .codefactory/
+   ├─ proposed/
+   ├─ todo/
+   ├─ picked-up/
+   ├─ waiting/
+   ├─ done/
+   └─ wont-do/           ← one card per .md file
 ```
+
+**New Project** asks one question first:
+
+- **Existing project:** pick the repository. Optionally, a headless agent
+  reads the code and proposes a backlog into Proposed.
+- **Brand new:** a short wizard asks what you're building, which platforms
+  (web, iOS, Android, Mac, Windows and Linux desktop, backend, CLI), the stack
+  (pick from suggestions or let the agents choose), the features and the look.
+  Code Factory creates the folder, writes `PROJECT.md`, runs `git init` and has
+  an agent plan a starter backlog for you to review.
+
+Prefer to keep cards elsewhere, such as in an Obsidian vault? Right-click a
+project and choose **Keep Cards in Another Folder…**.
 
 A card is markdown with optional flat frontmatter:
 
@@ -144,11 +184,16 @@ Each action sends the agent a slash command you can change in
 | Run Work     | `/work`         | interactive (tmux)     |
 | Triage       | `/work-triage`  | interactive (tmux)     |
 | Open Session | none            | interactive (tmux)     |
+| Plan Backlog | built in        | headless (`claude -p`) |
+
+Plan Backlog needs no skill: its prompt is built into the app, so a fresh
+install can turn a `PROJECT.md` (or an existing codebase) into a starter
+backlog on its own.
 
 Ready-to-use versions of these skills are in
 [`Examples/skills`](Examples/skills). Copy them into `~/.claude/skills/` or a
-project's `.claude/skills/`. Every agent also gets `CODE_FACTORY_VAULT`,
-`CODE_FACTORY_WORK_FOLDER` and `CODE_FACTORY_PROJECT` in its environment, so a
+project's `.claude/skills/`. Every agent also gets `CODE_FACTORY_CARDS` (the
+project's cards folder) and `CODE_FACTORY_PROJECT` in its environment, so a
 skill always knows where its cards live.
 
 ### Keyboard shortcuts
@@ -189,7 +234,9 @@ App/CodeFactory/            SwiftUI app
   Views/                    board, console, Factory Floor, sheets, settings
   Model/                    FactoryModel, ConsoleModel, preferences
 Packages/CodeFactoryKit/    pure-Swift core with unit tests
-  Vault.swift               cards on disk and path validation
+  CardBoard.swift           cards on disk and path validation
+  Project.swift             projects and their persistence
+  ProjectBrief.swift        new-project brief, backlog planner, scaffold
   Frontmatter.swift         surgical frontmatter edits
   AgentLauncher.swift       headless and tmux agents, permission modes
   JobStore.swift            persistent job ledger and liveness checks

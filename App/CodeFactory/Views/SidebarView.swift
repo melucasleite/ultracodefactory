@@ -3,42 +3,84 @@ import SwiftUI
 
 struct SidebarView: View {
     @Environment(FactoryModel.self) private var model
-    @State private var addingProject = false
-    @State private var newProject = ""
+    @State private var removing: Project?
+    @State private var dropTargeted = false
 
     var body: some View {
         @Bindable var model = model
         List(selection: $model.selectedProject) {
             Section("Projects") {
-                ForEach(model.projects, id: \.self) { project in
+                ForEach(model.projects) { project in
                     ProjectRow(
-                        name: project,
-                        open: model.openCounts[project] ?? 0,
-                        jobs: model.jobs(for: project).filter(\.state.isActive)
+                        project: project,
+                        open: model.openCounts[project.id] ?? 0,
+                        jobs: model.jobs(for: project.id).filter(\.state.isActive)
                     )
-                    .tag(project)
+                    .tag(project.id)
+                    .contextMenu { menu(for: project) }
                 }
             }
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .overlay {
+            if dropTargeted {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Theme.safetyOrange, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    .overlay(Label("Add as project", systemImage: "plus.circle.fill").foregroundStyle(Theme.safetyOrange))
+                    .padding(8)
+            }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            let folders = urls.filter { $0.hasDirectoryPath || (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+            for folder in folders { model.addProject(repository: folder) }
+            return !folders.isEmpty
+        } isTargeted: { dropTargeted = $0 }
         .safeAreaInset(edge: .bottom) { floorStatus }
         .toolbar {
             ToolbarItem {
-                Button("New Project", systemImage: "folder.badge.plus") { addingProject = true }
-                    .disabled(!model.vaultReady)
+                Button("New Project", systemImage: "plus") { model.showingNewProject = true }
+                    .help("Add an existing repository or start a brand-new project")
             }
         }
-        .alert("New Project", isPresented: $addingProject) {
-            TextField("project-name", text: $newProject)
-            Button("Create") {
-                model.createProject(newProject.trimmingCharacters(in: .whitespaces))
-                newProject = ""
+        .confirmationDialog("Remove “\(removing?.name ?? "")” from Code Factory?",
+                            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
+            Button("Remove", role: .destructive) {
+                if let removing { model.removeProject(removing) }
             }
-            Button("Cancel", role: .cancel) { newProject = "" }
         } message: {
-            Text("Creates the status folders in your vault. Agents run in a repository with the same name inside your repositories folder.")
+            Text("The repository and its cards stay on disk. You can add it back any time.")
         }
+    }
+
+    @ViewBuilder
+    private func menu(for project: Project) -> some View {
+        Button("Reveal Repository in Finder", systemImage: "folder") { Finder.reveal(project.repository) }
+        Button("Reveal Cards in Finder", systemImage: "tray.full") { Finder.reveal(project.cardsRoot) }
+        Divider()
+        Button("Locate Repository…", systemImage: "arrow.triangle.branch") {
+            if let url = Finder.chooseFolder(message: "Choose the repository for “\(project.name)”", startingAt: project.repository.path) {
+                var updated = project
+                updated.repository = url.standardizedFileURL
+                model.updateProject(updated)
+            }
+        }
+        Button("Keep Cards in Another Folder…", systemImage: "externaldrive") {
+            if let url = Finder.chooseFolder(message: "Choose a folder for “\(project.name)” cards, e.g. in your Obsidian vault", startingAt: project.cardsRoot.path) {
+                var updated = project
+                updated.cardsOverride = url.standardizedFileURL
+                model.updateProject(updated)
+            }
+        }
+        if project.cardsOverride != nil {
+            Button("Keep Cards in the Repository", systemImage: "arrow.uturn.backward") {
+                var updated = project
+                updated.cardsOverride = nil
+                model.updateProject(updated)
+            }
+        }
+        Divider()
+        Button("Remove from Code Factory…", systemImage: "minus.circle", role: .destructive) { removing = project }
     }
 
     private var floorStatus: some View {
@@ -57,13 +99,14 @@ struct SidebarView: View {
 }
 
 private struct ProjectRow: View {
-    let name: String
+    let project: Project
     let open: Int
     let jobs: [Job]
 
     var body: some View {
         HStack {
-            Label(name, systemImage: "shippingbox")
+            Label(project.name, systemImage: "shippingbox")
+                .help(project.repository.path)
             Spacer()
             if jobs.contains(where: { $0.state == .waiting }) {
                 Image(systemName: "exclamationmark.bubble.fill").foregroundStyle(Theme.hazardYellow)

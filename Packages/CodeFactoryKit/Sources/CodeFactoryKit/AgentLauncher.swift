@@ -32,7 +32,7 @@ public enum LaunchError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .missingBinary(let name): "Couldn’t find `\(name)`. Set its path in Settings → Agents."
-        case .missingRepository(let url): "No repository at \(url.path). Check Settings → Folders."
+        case .missingRepository(let url): "No repository at \(url.path). It may have moved — use Locate Repository… on the project."
         case .emptyPrompt: "Give the agent something to do first."
         }
     }
@@ -43,7 +43,6 @@ public enum LaunchError: LocalizedError {
 public struct LaunchConfiguration: Sendable {
     public var claude: URL?
     public var tmux: URL?
-    public var reposRoot: URL
     public var logsDirectory: URL
     public var permissionMode: PermissionMode
     public var extraArguments: [String]
@@ -53,7 +52,6 @@ public struct LaunchConfiguration: Sendable {
     public init(
         claude: URL?,
         tmux: URL?,
-        reposRoot: URL,
         logsDirectory: URL,
         permissionMode: PermissionMode,
         extraArguments: [String] = [],
@@ -61,24 +59,26 @@ public struct LaunchConfiguration: Sendable {
     ) {
         self.claude = claude
         self.tmux = tmux
-        self.reposRoot = reposRoot
         self.logsDirectory = logsDirectory
         self.permissionMode = permissionMode
         self.extraArguments = extraArguments
         self.environment = environment
     }
 
-    func environment(project: String) -> [String: String] {
-        environment.merging(["CODE_FACTORY_PROJECT": project]) { _, new in new }
+    /// What an agent needs to find its own board.
+    func environment(for project: Project) -> [String: String] {
+        environment.merging([
+            "CODE_FACTORY_PROJECT": project.name,
+            "CODE_FACTORY_CARDS": project.cardsRoot.path,
+        ]) { _, new in new }
     }
 
-    public func repository(for project: String) throws -> URL {
-        let url = reposRoot.appending(path: try Vault.segment(project), directoryHint: .isDirectory)
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else {
-            throw LaunchError.missingRepository(url)
+    func repository(for project: Project) throws -> URL {
+        do {
+            return try project.validatedRepository()
+        } catch {
+            throw LaunchError.missingRepository(project.repository)
         }
-        return url
     }
 
     var agentArguments: [String] {
@@ -90,7 +90,7 @@ public enum AgentLauncher {
     /// Runs `claude -p <prompt>` detached in the project repo, logging to a file.
     /// The process outlives the app; `onExit` fires only if it ends while we're running.
     public static func startHeadless(
-        project: String,
+        project: Project,
         prompt: String,
         action: String,
         config: LaunchConfiguration,
@@ -111,7 +111,7 @@ public enum AgentLauncher {
         process.executableURL = claude
         process.arguments = ["-p", trimmed] + config.agentArguments
         process.currentDirectoryURL = repo
-        process.environment = ProcessRunner.environment.merging(config.environment(project: project)) { _, new in new }
+        process.environment = ProcessRunner.environment.merging(config.environment(for: project)) { _, new in new }
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = handle
         process.standardError = handle
@@ -125,7 +125,8 @@ public enum AgentLauncher {
 
         return Job(
             id: id,
-            project: project,
+            project: project.name,
+            projectID: project.id,
             prompt: trimmed,
             action: action,
             mode: .headless,
@@ -136,7 +137,7 @@ public enum AgentLauncher {
 
     /// Starts an interactive Claude Code session inside a detached tmux session.
     public static func startInteractive(
-        project: String,
+        project: Project,
         prompt: String,
         action: String,
         config: LaunchConfiguration
@@ -156,12 +157,13 @@ public enum AgentLauncher {
             name: session,
             directory: repo,
             command: command,
-            environment: config.environment(project: project)
+            environment: config.environment(for: project)
                 .merging(["PATH": ProcessRunner.environment["PATH"] ?? ""]) { _, new in new }
         )
         return Job(
             id: id,
-            project: project,
+            project: project.name,
+            projectID: project.id,
             prompt: trimmed.isEmpty ? "(interactive session)" : trimmed,
             action: action,
             mode: .interactive,

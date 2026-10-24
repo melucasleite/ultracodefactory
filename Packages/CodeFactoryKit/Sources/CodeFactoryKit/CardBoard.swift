@@ -1,6 +1,6 @@
 import Foundation
 
-public enum VaultError: LocalizedError, Equatable {
+public enum CardError: LocalizedError, Equatable {
     case invalidName(String)
     case notFound(String)
     case alreadyExists(String)
@@ -14,19 +14,19 @@ public enum VaultError: LocalizedError, Equatable {
     }
 }
 
-/// A folder of markdown work cards laid out as `<work>/<project>/<status>/<card>.md`.
+/// One project's cards: a folder holding a subfolder per status, with one
+/// markdown file per card — `<root>/<status>/<card>.md`.
 ///
 /// Every name that comes from the outside world passes through `segment(_:)`
-/// before touching the filesystem, so nothing can climb out of the work root.
-public struct Vault: Sendable {
-    public let workRoot: URL
+/// before touching the filesystem, so nothing can climb out of the root.
+public struct CardBoard: Sendable {
+    public let root: URL
+    /// The owning project's id, stamped on every card listed.
+    public let project: String
 
-    public init(workRoot: URL) {
-        self.workRoot = workRoot.standardizedFileURL
-    }
-
-    public init(vaultRoot: URL, workFolder: String) {
-        self.init(workRoot: vaultRoot.appending(path: workFolder, directoryHint: .isDirectory))
+    public init(root: URL, project: String) {
+        self.root = root.standardizedFileURL
+        self.project = project
     }
 
     // MARK: Paths
@@ -41,50 +41,33 @@ public struct Vault: Sendable {
               !name.contains("\0"),
               !name.hasPrefix("."),
               name.count <= 255
-        else { throw VaultError.invalidName(name) }
+        else { throw CardError.invalidName(name) }
         return name
     }
 
-    func projectURL(_ project: String) throws -> URL {
-        workRoot.appending(path: try Self.segment(project), directoryHint: .isDirectory)
+    func statusURL(_ status: CardStatus) -> URL {
+        root.appending(path: status.rawValue, directoryHint: .isDirectory)
     }
 
-    func statusURL(_ project: String, _ status: CardStatus) throws -> URL {
-        try projectURL(project).appending(path: status.rawValue, directoryHint: .isDirectory)
-    }
-
-    public func cardURL(project: String, status: CardStatus, file: String) throws -> URL {
+    public func cardURL(status: CardStatus, file: String) throws -> URL {
         let name = try Self.segment(file)
-        guard name.hasSuffix(".md") else { throw VaultError.invalidName(file) }
-        return try statusURL(project, status).appending(path: name, directoryHint: .notDirectory)
+        guard name.hasSuffix(".md") else { throw CardError.invalidName(file) }
+        return statusURL(status).appending(path: name, directoryHint: .notDirectory)
     }
 
     // MARK: Reading
 
     public var exists: Bool {
         var isDir: ObjCBool = false
-        return FileManager.default.fileExists(atPath: workRoot.path, isDirectory: &isDir) && isDir.boolValue
+        return FileManager.default.fileExists(atPath: root.path, isDirectory: &isDir) && isDir.boolValue
     }
 
-    public func listProjects() throws -> [String] {
-        let entries = try FileManager.default.contentsOfDirectory(
-            at: workRoot,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        )
-        return entries
-            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
-            .map(\.lastPathComponent)
-            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-    }
-
-    public func listCards(project: String) throws -> [Card] {
+    public func listCards() -> [Card] {
         var cards: [Card] = []
         for status in CardStatus.allCases {
-            let dir = try statusURL(project, status)
             guard let files = try? FileManager.default.contentsOfDirectory(
-                at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
-            ) else { continue } // a project need not have every status folder
+                at: statusURL(status), includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+            ) else { continue } // a board need not have every status folder
             for url in files where url.pathExtension == "md" {
                 guard let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
                 let fm = Frontmatter.parse(content)
@@ -106,27 +89,34 @@ public struct Vault: Sendable {
         }
     }
 
-    public func read(project: String, status: CardStatus, file: String) throws -> String {
-        try String(contentsOf: cardURL(project: project, status: status, file: file), encoding: .utf8)
+    public func read(status: CardStatus, file: String) throws -> String {
+        try String(contentsOf: cardURL(status: status, file: file), encoding: .utf8)
     }
 
     // MARK: Writing
 
-    public func write(project: String, status: CardStatus, file: String, content: String) throws {
-        let url = try cardURL(project: project, status: status, file: file)
+    /// Creates the six status folders (harmless if they exist).
+    public func prepare() throws {
+        for status in CardStatus.allCases {
+            try FileManager.default.createDirectory(at: statusURL(status), withIntermediateDirectories: true)
+        }
+    }
+
+    public func write(status: CardStatus, file: String, content: String) throws {
+        let url = try cardURL(status: status, file: file)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try content.write(to: url, atomically: true, encoding: .utf8)
     }
 
     /// Moves a card to another column, stamping `status:` and `updated:` in its
     /// frontmatter. Refuses to clobber a same-named card in the destination.
-    public func move(project: String, file: String, from: CardStatus, to: CardStatus, today: Date = .now) throws {
+    public func move(file: String, from: CardStatus, to: CardStatus, today: Date = .now) throws {
         guard from != to else { return }
-        let source = try cardURL(project: project, status: from, file: file)
-        let destination = try cardURL(project: project, status: to, file: file)
-        guard FileManager.default.fileExists(atPath: source.path) else { throw VaultError.notFound(source.path) }
+        let source = try cardURL(status: from, file: file)
+        let destination = try cardURL(status: to, file: file)
+        guard FileManager.default.fileExists(atPath: source.path) else { throw CardError.notFound(source.path) }
         guard !FileManager.default.fileExists(atPath: destination.path) else {
-            throw VaultError.alreadyExists(destination.path)
+            throw CardError.alreadyExists(destination.path)
         }
         let content = try String(contentsOf: source, encoding: .utf8)
         let updated = Frontmatter.updating(content, with: ["status": to.rawValue, "updated": Self.dayStamp(today)])
@@ -136,15 +126,13 @@ public struct Vault: Sendable {
     }
 
     /// Moves a card to the macOS Trash rather than deleting it outright.
-    public func trash(project: String, status: CardStatus, file: String) throws {
-        let url = try cardURL(project: project, status: status, file: file)
-        try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+    public func trash(status: CardStatus, file: String) throws {
+        try FileManager.default.trashItem(at: cardURL(status: status, file: file), resultingItemURL: nil)
     }
 
     /// Creates a new card from a title, returning its filename.
     @discardableResult
     public func create(
-        project: String,
         title: String,
         kind: String = "feature",
         status: CardStatus = .proposed,
@@ -154,7 +142,7 @@ public struct Vault: Sendable {
         let base = Self.slug(title)
         var file = "\(base).md"
         var n = 2
-        while FileManager.default.fileExists(atPath: try cardURL(project: project, status: status, file: file).path) {
+        while FileManager.default.fileExists(atPath: try cardURL(status: status, file: file).path) {
             file = "\(base)-\(n).md"
             n += 1
         }
@@ -172,18 +160,8 @@ public struct Vault: Sendable {
         \(body.isEmpty ? "## Goal\n\n\n## Acceptance criteria\n\n- [ ] " : body)
 
         """
-        try write(project: project, status: status, file: file, content: content)
+        try write(status: status, file: file, content: content)
         return file
-    }
-
-    public func createProject(_ name: String) throws {
-        let url = try projectURL(name)
-        for status in CardStatus.allCases {
-            try FileManager.default.createDirectory(
-                at: url.appending(path: status.rawValue, directoryHint: .isDirectory),
-                withIntermediateDirectories: true
-            )
-        }
     }
 
     // MARK: Helpers

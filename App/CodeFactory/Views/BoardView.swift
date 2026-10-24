@@ -27,7 +27,7 @@ struct BoardView: View {
                         ColumnView(
                             status: status,
                             cards: model.cards.filter { $0.status == status && matches($0) },
-                            fabricating: status == .todo ? model.fabricating(in: project) : [],
+                            fabricating: model.fabricating(in: project, status: status),
                             openCard: $openCard
                         )
                         .frame(width: width)

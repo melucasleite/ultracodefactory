@@ -28,7 +28,7 @@ public struct Tmux: Sendable {
     /// `[A-Za-z0-9-]` names, and refuse anything else.
     public static func validate(session: String) throws -> String {
         guard !session.isEmpty, session.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }) else {
-            throw VaultError.invalidName(session)
+            throw CardError.invalidName(session)
         }
         return session
     }

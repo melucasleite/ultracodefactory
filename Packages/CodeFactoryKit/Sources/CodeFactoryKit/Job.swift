@@ -21,7 +21,10 @@ public struct Job: Identifiable, Codable, Hashable, Sendable {
     }
 
     public var id: String
+    /// The project's display name at launch.
     public var project: String
+    /// The `Project.id` the job belongs to.
+    public var projectID: String
     /// The full slash command or prompt the agent was started with.
     public var prompt: String
     /// Which launcher action produced the job (create, work, triage, custom).
@@ -38,6 +41,7 @@ public struct Job: Identifiable, Codable, Hashable, Sendable {
     public init(
         id: String,
         project: String,
+        projectID: String,
         prompt: String,
         action: String,
         mode: Mode,
@@ -49,6 +53,7 @@ public struct Job: Identifiable, Codable, Hashable, Sendable {
     ) {
         self.id = id
         self.project = project
+        self.projectID = projectID
         self.prompt = prompt
         self.action = action
         self.mode = mode

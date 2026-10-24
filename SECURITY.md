@@ -4,7 +4,9 @@
 
 Code Factory is a launcher and viewer for AI coding agents. It:
 
-- reads and writes markdown files under the vault folder you choose;
+- reads and writes markdown cards in each project's `.codefactory/` folder (or
+  the cards folder you chose for it), and creates new project folders only
+  when you finish the New Project wizard;
 - starts `claude` (Claude Code) in the repository folders you choose, either
   headless (`claude -p`) or inside a detached `tmux` session;
 - reads those tmux sessions' screens and sends them the keystrokes you type

@@ -17,7 +17,7 @@ struct CreateWorkSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             SheetHeader(title: "Create Work", subtitle: "A headless agent turns your idea into a card in To-Do.", symbol: "wand.and.sparkles")
             Picker("Project", selection: $project) {
-                ForEach(model.projects, id: \.self) { Text($0).tag($0) }
+                ForEach(model.projects) { Text($0.name).tag($0.id) }
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("What needs doing?").font(.callout.weight(.medium))
@@ -29,7 +29,7 @@ struct CreateWorkSheet: View {
                     .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
             }
-            Text("Runs `\(model.prompt(for: .create, text: "…"))` in **\(project)** with permission mode *\(model.prefs.permissionMode.title.lowercased())*.")
+            Text("Runs `\(model.prompt(for: .create, text: "…"))` in **\(model.project(project)?.name ?? "the project")** with permission mode *\(model.prefs.permissionMode.title.lowercased())*.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {
@@ -69,7 +69,7 @@ struct NewCardSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            SheetHeader(title: "New Card", subtitle: "Adds a markdown card to \(model.selectedProject ?? "the project").", symbol: "plus.rectangle.on.rectangle")
+            SheetHeader(title: "New Card", subtitle: "Adds a markdown card to \(model.selected?.name ?? "the project").", symbol: "plus.rectangle.on.rectangle")
             Form {
                 TextField("Title", text: $title, prompt: Text("Make the build faster"))
                 Picker("Kind", selection: $kind) {

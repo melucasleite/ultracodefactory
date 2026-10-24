@@ -3,19 +3,21 @@ import Foundation
 import Observation
 import UserNotifications
 
-/// The app's single source of truth: which vault, which project, its cards,
-/// and every agent on the factory floor.
+/// The app's single source of truth: your projects, the selected one's
+/// cards, and every agent on the factory floor.
 @MainActor
 @Observable
 final class FactoryModel {
-    private(set) var projects: [String] = []
-    /// Open (not done / won't do) card counts per project, for the sidebar.
+    private(set) var projects: [Project] = []
+    /// Open (not done / won't do) card counts per project id, for the sidebar.
     private(set) var openCounts: [String: Int] = [:]
     private(set) var cards: [Card] = []
     private(set) var jobs: [Job] = []
-    private(set) var vaultReady = false
     var errorMessage: String?
+    /// Drives the New Project sheet from anywhere (sidebar, welcome, menu).
+    var showingNewProject = false
 
+    /// The selected project's id.
     var selectedProject: String? {
         didSet {
             guard selectedProject != oldValue else { return }
@@ -24,26 +26,23 @@ final class FactoryModel {
         }
     }
 
+    @ObservationIgnored private let projectStore = ProjectStore(
+        fileURL: Preferences.supportDirectory.appending(path: "projects.json")
+    )
     @ObservationIgnored private let jobStore = JobStore(
         fileURL: Preferences.supportDirectory.appending(path: "jobs.json")
     )
     @ObservationIgnored private var watcher: DirectoryWatcher?
-    @ObservationIgnored private var watchedRoot: URL?
     @ObservationIgnored private var pollTask: Task<Void, Never>?
-    @ObservationIgnored private var defaultsObserver: NSObjectProtocol?
     @ObservationIgnored private var lastStates: [String: Job.State] = [:]
 
     var prefs: Preferences { Preferences() }
 
     init() {
         Preferences.registerDefaults()
+        projects = projectStore.load()
         selectedProject = UserDefaults.standard.string(forKey: Pref.selectedProject)
-        configureVault()
-        defaultsObserver = NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.configureVault() }
-        }
+        projectsChanged()
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refreshJobs()
@@ -55,88 +54,116 @@ final class FactoryModel {
 
     // MARK: Derived state
 
+    var hasProjects: Bool { !projects.isEmpty }
+    var selected: Project? { selectedProject.flatMap(project) }
+    func project(_ id: String) -> Project? { projects.first { $0.id == id } }
+
     var activeJobs: [Job] { jobs.filter(\.state.isActive) }
     var waitingJobs: [Job] { jobs.filter { $0.state == .waiting } }
 
-    func jobs(for project: String) -> [Job] { jobs.filter { $0.project == project } }
+    func jobs(for projectID: String) -> [Job] { jobs.filter { $0.projectID == projectID } }
 
-    /// Headless create jobs still running — drawn as cards under construction.
-    func fabricating(in project: String) -> [Job] {
-        jobs.filter { $0.project == project && $0.action == LaunchAction.create.rawValue && $0.state.isActive }
+    /// Headless jobs still writing cards into `status` — drawn as cards under construction.
+    func fabricating(in projectID: String, status: CardStatus) -> [Job] {
+        jobs(for: projectID).filter {
+            $0.state.isActive && LaunchAction(rawValue: $0.action)?.fabricatesInto == status
+        }
     }
 
     var kinds: [String] {
         Array(Set(cards.compactMap(\.kind))).sorted()
     }
 
-    // MARK: Vault
+    // MARK: Projects
 
-    /// (Re)binds to the vault in Preferences, restarting the file watcher only
-    /// when the location actually changed.
-    func configureVault() {
-        guard let vault = prefs.vault else {
-            vaultReady = false
-            watcher?.stop()
-            watcher = nil
-            watchedRoot = nil
-            projects = []
-            cards = []
-            return
+    /// Adds a repository as a project, creating its `.codefactory` card
+    /// folders. Adding the same repository twice just selects it.
+    @discardableResult
+    func addProject(repository: URL) -> Project? {
+        let url = repository.standardizedFileURL
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else {
+            report(CardError.notFound(url.path))
+            return nil
         }
-        vaultReady = vault.exists
-        guard watchedRoot != vault.workRoot || watcher == nil else { return }
-        watchedRoot = vault.workRoot
+        if let existing = projects.first(where: { $0.repository == url }) {
+            selectedProject = existing.id
+            return existing
+        }
+        let project = Project(repository: url)
+        do {
+            try project.board.prepare()
+        } catch {
+            report(error)
+            return nil
+        }
+        projects.append(project)
+        projects.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        saveProjects()
+        selectedProject = project.id
+        return project
+    }
+
+    /// Forgets a project. Its repository and cards stay on disk.
+    func removeProject(_ project: Project) {
+        projects.removeAll { $0.id == project.id }
+        saveProjects()
+        if selectedProject == project.id { selectedProject = projects.first?.id }
+    }
+
+    func updateProject(_ project: Project) {
+        guard let index = projects.firstIndex(where: { $0.id == project.id }) else { return }
+        projects[index] = project
+        try? project.board.prepare()
+        saveProjects()
+    }
+
+    private func saveProjects() {
+        do {
+            try projectStore.save(projects)
+        } catch {
+            report(error)
+        }
+        projectsChanged()
+    }
+
+    /// Rewatches every project's cards folder and reloads.
+    private func projectsChanged() {
         watcher?.stop()
-        watcher = vaultReady ? DirectoryWatcher(url: vault.workRoot) { [weak self] in self?.reload() } : nil
+        let roots = projects.map(\.cardsRoot).filter { FileManager.default.fileExists(atPath: $0.path) }
+        watcher = roots.isEmpty ? nil : DirectoryWatcher(urls: roots) { [weak self] in self?.reload() }
         reload()
     }
 
     func reload() {
-        guard let vault = prefs.vault, vault.exists else {
-            vaultReady = false
-            return
+        var counts: [String: Int] = [:]
+        for project in projects {
+            counts[project.id] = project.board.listCards().filter { $0.status != .done && $0.status != .wontDo }.count
         }
-        vaultReady = true
-        do {
-            projects = try vault.listProjects()
-            var counts: [String: Int] = [:]
-            for project in projects {
-                counts[project] = (try? vault.listCards(project: project))?
-                    .filter { $0.status != .done && $0.status != .wontDo }.count ?? 0
-            }
-            openCounts = counts
-            if selectedProject.map({ !projects.contains($0) }) ?? true {
-                selectedProject = projects.first
-            }
-            loadCards()
-        } catch {
-            report(error)
-        }
+        openCounts = counts
+        if selected == nil { selectedProject = projects.first?.id }
+        loadCards()
     }
 
     func loadCards() {
-        guard let vault = prefs.vault, let project = selectedProject else {
-            cards = []
-            return
-        }
-        do {
-            cards = try vault.listCards(project: project)
-        } catch {
-            cards = []
-            report(error)
-        }
+        cards = selected?.board.listCards() ?? []
     }
 
     // MARK: Cards
 
+    private func board(_ projectID: String) throws -> CardBoard {
+        guard let project = project(projectID) else { throw CardError.notFound("project") }
+        return project.board
+    }
+
     func move(_ ref: CardReference, to status: CardStatus) {
-        guard ref.status != status, let vault = prefs.vault else { return }
+        guard ref.status != status else { return }
         // Optimistic: slide the tile now, let the watcher confirm.
         if let index = cards.firstIndex(where: { $0.project == ref.project && $0.status == ref.status && $0.file == ref.file }) {
             cards[index].status = status
         }
         do {
-            try vault.move(project: ref.project, file: ref.file, from: ref.status, to: status)
+            try board(ref.project).move(file: ref.file, from: ref.status, to: status)
         } catch {
             report(error)
         }
@@ -145,7 +172,7 @@ final class FactoryModel {
 
     func trash(_ card: Card) {
         do {
-            try prefs.vault?.trash(project: card.project, status: card.status, file: card.file)
+            try board(card.project).trash(status: card.status, file: card.file)
         } catch {
             report(error)
         }
@@ -153,25 +180,23 @@ final class FactoryModel {
     }
 
     func read(_ card: Card) throws -> String {
-        guard let vault = prefs.vault else { throw VaultError.notFound("vault") }
-        return try vault.read(project: card.project, status: card.status, file: card.file)
+        try board(card.project).read(status: card.status, file: card.file)
     }
 
     func save(_ card: Card, content: String) throws {
-        guard let vault = prefs.vault else { throw VaultError.notFound("vault") }
-        try vault.write(project: card.project, status: card.status, file: card.file, content: content)
+        try board(card.project).write(status: card.status, file: card.file, content: content)
         reload()
     }
 
     func cardURL(_ card: Card) -> URL? {
-        try? prefs.vault?.cardURL(project: card.project, status: card.status, file: card.file)
+        try? board(card.project).cardURL(status: card.status, file: card.file)
     }
 
     @discardableResult
     func createCard(title: String, kind: String, status: CardStatus) -> Card? {
-        guard let vault = prefs.vault, let project = selectedProject else { return nil }
+        guard let selected else { return nil }
         do {
-            let file = try vault.create(project: project, title: title, kind: kind, status: status)
+            let file = try selected.board.create(title: title, kind: kind, status: status)
             reload()
             return cards.first { $0.file == file && $0.status == status }
         } catch {
@@ -180,30 +205,14 @@ final class FactoryModel {
         }
     }
 
-    func createProject(_ name: String) {
-        do {
-            try prefs.vault?.createProject(name)
-            reload()
-            selectedProject = name
-        } catch {
-            report(error)
-        }
-    }
-
     // MARK: Agents
 
-    private var launchConfiguration: LaunchConfiguration? {
-        guard let repos = prefs.reposRoot else { return nil }
-        return LaunchConfiguration(
+    private var launchConfiguration: LaunchConfiguration {
+        LaunchConfiguration(
             claude: prefs.claude,
             tmux: prefs.tmux,
-            reposRoot: repos,
             logsDirectory: Preferences.supportDirectory.appending(path: "logs", directoryHint: .isDirectory),
-            permissionMode: prefs.permissionMode,
-            environment: [
-                "CODE_FACTORY_VAULT": prefs.vaultRoot?.path ?? "",
-                "CODE_FACTORY_WORK_FOLDER": prefs.workFolder,
-            ]
+            permissionMode: prefs.permissionMode
         )
     }
 
@@ -214,7 +223,7 @@ final class FactoryModel {
         case .create: prefs.createCommand
         case .work: prefs.workCommand
         case .triage: prefs.triageCommand
-        case .session: ""
+        case .session, .plan: ""
         }
         return [command, text.trimmingCharacters(in: .whitespacesAndNewlines)]
             .filter { !$0.isEmpty }
@@ -222,14 +231,11 @@ final class FactoryModel {
     }
 
     @discardableResult
-    func launch(_ action: LaunchAction, project: String? = nil, text: String = "") async -> Job? {
-        guard let project = project ?? selectedProject else { return nil }
-        guard let config = launchConfiguration else {
-            report(LaunchError.missingRepository(URL(filePath: "(no repositories folder set)")))
-            return nil
-        }
+    func launch(_ action: LaunchAction, project projectID: String? = nil, text: String = "", fullPrompt: String? = nil) async -> Job? {
+        guard let id = projectID ?? selectedProject, let project = project(id) else { return nil }
+        let config = launchConfiguration
         requestNotificationPermissionIfNeeded()
-        let prompt = prompt(for: action, text: text)
+        let prompt = fullPrompt ?? prompt(for: action, text: text)
         do {
             let job: Job
             if action.isInteractive {
@@ -247,6 +253,13 @@ final class FactoryModel {
             report(error)
             return nil
         }
+    }
+
+    /// Asks a headless agent to propose a starter backlog into Proposed.
+    @discardableResult
+    func planBacklog(for project: Project, fromExistingCode: Bool) async -> Job? {
+        let prompt = BacklogPlanner.prompt(cardsFolder: project.cardsRoot, fromExistingCode: fromExistingCode)
+        return await launch(.plan, project: project.id, fullPrompt: prompt)
     }
 
     func stop(_ job: Job) async {
@@ -295,7 +308,7 @@ final class FactoryModel {
     // MARK: Notifications
 
     private func announce(_ job: Job, from previous: Job.State) {
-        if job.action == LaunchAction.create.rawValue, !job.state.isActive { reload() }
+        if LaunchAction(rawValue: job.action)?.fabricatesInto != nil, !job.state.isActive { reload() }
         guard prefs.notifications else { return }
         let content = UNMutableNotificationContent()
         content.threadIdentifier = job.project

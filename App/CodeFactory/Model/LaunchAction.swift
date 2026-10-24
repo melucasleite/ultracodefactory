@@ -1,3 +1,4 @@
+import CodeFactoryKit
 import Foundation
 
 /// The things you can ask the factory to do for a project.
@@ -10,6 +11,8 @@ enum LaunchAction: String, CaseIterable, Identifiable {
     case triage
     /// Interactive: a plain Claude Code session in the repo.
     case session
+    /// Headless: propose a starter backlog with the built-in planner prompt.
+    case plan
 
     var id: String { rawValue }
 
@@ -19,6 +22,7 @@ enum LaunchAction: String, CaseIterable, Identifiable {
         case .work: "Run Work"
         case .triage: "Triage"
         case .session: "Open Session"
+        case .plan: "Plan Backlog"
         }
     }
 
@@ -28,8 +32,18 @@ enum LaunchAction: String, CaseIterable, Identifiable {
         case .work: "play.fill"
         case .triage: "scalemass"
         case .session: "terminal"
+        case .plan: "list.bullet.clipboard"
         }
     }
 
-    var isInteractive: Bool { self != .create }
+    var isInteractive: Bool { self != .create && self != .plan }
+
+    /// The column where this action's not-yet-written cards appear.
+    var fabricatesInto: CardStatus? {
+        switch self {
+        case .create: .todo
+        case .plan: .proposed
+        default: nil
+        }
+    }
 }

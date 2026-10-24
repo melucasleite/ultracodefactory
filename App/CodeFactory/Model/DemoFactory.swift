@@ -1,19 +1,14 @@
 import CodeFactoryKit
 import Foundation
 
-/// Builds a small, self-contained sample vault so a fresh install has
+/// Builds a small scratch repository with sample cards so a fresh install has
 /// something to look at before you point it at real work.
 enum DemoFactory {
     static var root: URL { Preferences.supportDirectory.appending(path: "Demo", directoryHint: .isDirectory) }
 
-    static func install() throws {
-        let vaultRoot = root.appending(path: "vault", directoryHint: .isDirectory)
-        let reposRoot = root.appending(path: "repos", directoryHint: .isDirectory)
-        let vault = Vault(vaultRoot: vaultRoot, workFolder: "Work")
-        let project = "demo-factory"
-        try vault.createProject(project)
-
-        let repo = reposRoot.appending(path: project, directoryHint: .isDirectory)
+    /// Builds (or refreshes) the demo repository and returns its folder.
+    static func install() throws -> URL {
+        let repo = root.appending(path: "demo-factory", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
         try """
         # demo-factory
@@ -22,6 +17,8 @@ enum DemoFactory {
         the demo board run here, so nothing they do touches your real code.
 
         """.write(to: repo.appending(path: "README.md"), atomically: true, encoding: .utf8)
+        let board = Project(repository: repo).board
+        try board.prepare()
 
         let samples: [(String, String, CardStatus, String)] = [
             ("Add a dark-mode toggle to the settings page", "feature", .proposed,
@@ -40,16 +37,12 @@ enum DemoFactory {
              "Tempting, but no."),
         ]
         for (title, kind, status, body) in samples {
-            let file = "\(Vault.slug(title)).md"
-            if (try? vault.read(project: project, status: status, file: file)) == nil {
-                try vault.create(project: project, title: title, kind: kind, status: status, body: body)
+            let file = "\(CardBoard.slug(title)).md"
+            if (try? board.read(status: status, file: file)) == nil {
+                try board.create(title: title, kind: kind, status: status, body: body)
             }
         }
 
-        let defaults = UserDefaults.standard
-        defaults.set(vaultRoot.path, forKey: Pref.vaultPath)
-        defaults.set("Work", forKey: Pref.workFolder)
-        defaults.set(reposRoot.path, forKey: Pref.reposPath)
-        defaults.set(project, forKey: Pref.selectedProject)
+        return repo
     }
 }

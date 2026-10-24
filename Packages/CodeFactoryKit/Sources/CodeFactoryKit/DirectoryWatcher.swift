@@ -1,14 +1,14 @@
 import CoreServices
 import Foundation
 
-/// Watches a directory tree with FSEvents and calls back (on the main queue,
+/// Watches one or more directory trees with FSEvents and calls back (on the main queue,
 /// coalesced) whenever anything inside it changes — whether the change came
 /// from this app, an agent, a text editor or a bare `mv` in a terminal.
 public final class DirectoryWatcher: @unchecked Sendable {
     private var stream: FSEventStreamRef?
     private let onChange: @MainActor () -> Void
 
-    public init(url: URL, latency: TimeInterval = 0.3, onChange: @escaping @MainActor () -> Void) {
+    public init(urls: [URL], latency: TimeInterval = 0.3, onChange: @escaping @MainActor () -> Void) {
         self.onChange = onChange
         var context = FSEventStreamContext(
             version: 0,
@@ -26,7 +26,7 @@ public final class DirectoryWatcher: @unchecked Sendable {
             kCFAllocatorDefault,
             callback,
             &context,
-            [url.path] as CFArray,
+            urls.map(\.path) as CFArray,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             latency,
             FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagNoDefer)

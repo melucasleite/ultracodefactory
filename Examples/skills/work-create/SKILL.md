@@ -1,6 +1,6 @@
 ---
 name: work-create
-description: Turn a one-line idea into a work card in the Code Factory vault. Use when invoked as /work-create followed by an idea.
+description: Turn a one-line idea into a Code Factory work card. Use when invoked as /work-create followed by an idea.
 ---
 
 # Create a work card
@@ -8,12 +8,13 @@ description: Turn a one-line idea into a work card in the Code Factory vault. Us
 You were given a short idea after the command. Turn it into one well-formed
 card and stop.
 
-1. Find the vault. Code Factory sets `CODE_FACTORY_VAULT`,
-   `CODE_FACTORY_WORK_FOLDER` (usually `Work`) and `CODE_FACTORY_PROJECT` in
-   your environment; if they are missing, ask the user. Cards go in
-   `$CODE_FACTORY_VAULT/$CODE_FACTORY_WORK_FOLDER/$CODE_FACTORY_PROJECT/todo/`.
-2. Look at the repository just enough to make the card concrete — relevant
-   files, existing tests, conventions. Do not change any code.
+1. Find the board. Code Factory sets `CODE_FACTORY_CARDS` (the project's cards
+   folder, usually `<repo>/.codefactory`) and `CODE_FACTORY_PROJECT` in your
+   environment. Without them, use `./.codefactory`. New cards go in
+   `$CODE_FACTORY_CARDS/todo/`.
+2. Read `PROJECT.md` if it exists, then look at the repository just enough to
+   make the card concrete: relevant files, existing tests, conventions. Do
+   not change any code.
 3. Write `<slug-of-title>.md` with this shape:
 
    ```markdown
@@ -21,6 +22,7 @@ card and stop.
    title: Short imperative title
    status: todo
    kind: feature | bug | chore | refactor | spike | docs
+   priority: high | medium | low
    created: YYYY-MM-DD
    updated: YYYY-MM-DD
    ---
