@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/icon.png" width="144" height="144" alt="Code Factory app icon: an orange gear with a terminal prompt over hazard stripes">
+  <img src="docs/icon.png" width="144" height="144" alt="Code Factory app icon: a frosted terminal prompt with a glowing amber cursor">
 </p>
 
 <h1 align="center">Code Factory</h1>
@@ -85,7 +85,7 @@ first launch, choose your vault folder or click **Try the Demo Factory**.
 | `make test`    | Run the `CodeFactoryKit` unit tests (Swift Testing)  |
 | `make project` | Generate `CodeFactory.xcodeproj` to open it in Xcode |
 | `make release` | Build a Release app                                  |
-| `make icon`    | Redraw the app icon from code                        |
+| `make icon`    | Regenerate the app icon sizes from the artwork       |
 
 ## How it works
 
@@ -196,7 +196,7 @@ Packages/CodeFactoryKit/    pure-Swift core with unit tests
   ANSI.swift                terminal colours → styled text
   DirectoryWatcher.swift    FSEvents
 Examples/skills/            sample /work-create, /work and /work-triage skills
-Scripts/make-icon.swift     the app icon, drawn entirely in code
+Scripts/mask-icon.swift     masks Scripts/icon-artwork.png into every app icon size
 ```
 
 On macOS 26 and later the interface uses real **Liquid Glass**

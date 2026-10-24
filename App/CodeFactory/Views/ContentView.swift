@@ -44,7 +44,7 @@ struct ContentView: View {
         .background(FactoryBackdrop())
         .toolbar { toolbar }
         .searchable(text: $search, placement: .toolbar, prompt: "Filter cards")
-        .navigationTitle(model.selectedProject ?? "Code Factory")
+        .navigationTitle(model.vaultReady ? (model.selectedProject ?? "Code Factory") : "Code Factory")
         .navigationSubtitle(subtitle)
         .sheet(item: $openCard) { CardDetailView(card: $0) }
         .sheet(item: $sheet) { sheet in
