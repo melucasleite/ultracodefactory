@@ -335,7 +335,7 @@ final class FactoryModel {
                 MainActor.assumeIsolated { self?.leftAt = .now }
             },
             center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { Task { await self?.cameBack() } }
+                Task { @MainActor [weak self] in await self?.cameBack() }
             },
         ]
     }

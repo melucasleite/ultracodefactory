@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Toolchain
+        run: xcodebuild -version && swift --version
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Unit tests
