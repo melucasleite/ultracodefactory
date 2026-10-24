@@ -471,6 +471,13 @@ final class FactoryModel {
         Task { await runAutoMode() }
     }
 
+    /// Sets how many workers Auto mode keeps busy (clamped to 1–6).
+    func setWorkerLimit(_ workers: Int, for projectID: String) {
+        var mode = autoMode(for: projectID)
+        mode.workers = min(max(workers, AutoMode.range.lowerBound), AutoMode.range.upperBound)
+        setAutoMode(mode, for: projectID)
+    }
+
     /// Active parallel workers for a project.
     func workers(for projectID: String) -> [Job] {
         jobs(for: projectID).filter { $0.card != nil && $0.state.isActive }

@@ -259,12 +259,17 @@ private struct RunWorkMenu: View {
             )) {
                 Label("Auto Mode", systemImage: "bolt.fill")
             }
-            Picker("Parallel Workers", selection: Binding(
-                get: { mode.workers },
-                set: { var m = mode; m.workers = $0; model.setAutoMode(m, for: id) }
-            )) {
+            Menu("Parallel Workers: \(mode.workers)") {
                 ForEach(Array(AutoMode.range), id: \.self) { n in
-                    Text("\(n) worker\(n == 1 ? "" : "s")").tag(n)
+                    Button {
+                        model.setWorkerLimit(n, for: id)
+                    } label: {
+                        if n == mode.workers {
+                            Label("\(n) worker\(n == 1 ? "" : "s")", systemImage: "checkmark")
+                        } else {
+                            Text("\(n) worker\(n == 1 ? "" : "s")")
+                        }
+                    }
                 }
             }
             Text("Each worker builds a ready card on its own branch and opens a PR. Cards wait until what they depend on is Done.")

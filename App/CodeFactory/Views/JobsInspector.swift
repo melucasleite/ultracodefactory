@@ -15,10 +15,21 @@ struct JobsInspector: View {
                     .foregroundStyle(Theme.safetyOrange)
                 Spacer()
                 if let id = model.selectedProject, model.autoMode(for: id).enabled {
-                    Label("Auto \(model.workers(for: id).count)/\(model.autoMode(for: id).workers)", systemImage: "bolt.fill")
-                        .font(.caption.weight(.bold))
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .glassCapsule(tint: Theme.safetyOrange)
+                    let mode = model.autoMode(for: id)
+                    HStack(spacing: 6) {
+                        Button { model.setWorkerLimit(mode.workers - 1, for: id) } label: { Image(systemName: "minus") }
+                            .disabled(mode.workers <= AutoMode.range.lowerBound)
+                            .help("Fewer parallel workers")
+                        Label("Auto \(model.workers(for: id).count)/\(mode.workers)", systemImage: "bolt.fill")
+                            .monospacedDigit()
+                        Button { model.setWorkerLimit(mode.workers + 1, for: id) } label: { Image(systemName: "plus") }
+                            .disabled(mode.workers >= AutoMode.range.upperBound)
+                            .help("More parallel workers")
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .glassCapsule(tint: Theme.safetyOrange)
                 }
                 if !active.isEmpty {
                     Text("\(active.count) live")
