@@ -170,7 +170,12 @@ struct ContentView: View {
 
     private func launch(_ action: LaunchAction) {
         Task {
-            if let job = await model.launch(action) {
+            let job: Job? = if action == .plan, let project = model.selected {
+                await model.planBacklog(for: project)
+            } else {
+                await model.launch(action)
+            }
+            if let job {
                 showJobs = true
                 if action.isInteractive { openWindow(id: "console", value: job.id) }
             }

@@ -62,7 +62,8 @@ final class ConsoleModel {
                 next = raw.isEmpty ? "(the session has ended)" : raw
             }
         case .headless:
-            next = Self.tail(job.logPath, bytes: 96 * 1024) ?? "(waiting for output…)"
+            next = Self.tail(job.logPath, bytes: 512 * 1024).map(AgentStream.render) ?? "(waiting for output…)"
+            if next.isEmpty { next = "(the agent is getting started…)" }
             sessionEnded = !job.state.isActive
         }
         if sessionEnded || !job.state.isActive { question = nil }
@@ -148,7 +149,9 @@ final class ConsoleModel {
         let start = size > UInt64(bytes) ? size - UInt64(bytes) : 0
         try? handle.seek(toOffset: start)
         let data = (try? handle.readToEnd()) ?? Data()
-        let text = String(decoding: data, as: UTF8.self)
+        var text = String(decoding: data, as: UTF8.self)
+        // Started mid-file: drop the partial first line.
+        if start > 0, let newline = text.firstIndex(of: "\n") { text = String(text[text.index(after: newline)...]) }
         return text.isEmpty ? nil : text
     }
 }

@@ -88,7 +88,7 @@ final class FactoryModel {
     /// folders. Adding the same repository twice just selects it.
     @discardableResult
     func addProject(repository: URL) -> Project? {
-        let url = repository.standardizedFileURL
+        let url = Project.canonical(repository)
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else {
             report(CardError.notFound(url.path))
@@ -300,6 +300,7 @@ final class FactoryModel {
             }
             // Show a short label instead of a long built-in prompt.
             if let label { job.prompt = label }
+            job.instructions = prompt
             try await jobStore.add(job)
             lastStates[job.id] = job.state
             jobs = await jobStore.all()
@@ -308,6 +309,15 @@ final class FactoryModel {
             report(error)
             return nil
         }
+    }
+
+    /// Plans from the brief when the repo holds nothing but `PROJECT.md`,
+    /// otherwise from the code.
+    @discardableResult
+    func planBacklog(for project: Project) async -> Job? {
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: project.repository.path)) ?? []
+        let onlyBrief = entries.filter { !$0.hasPrefix(".") && $0 != "PROJECT.md" }.isEmpty
+        return await planBacklog(for: project, fromExistingCode: !onlyBrief)
     }
 
     /// Asks a headless agent to propose a starter backlog into Proposed.
@@ -340,18 +350,69 @@ final class FactoryModel {
     func job(_ id: String) -> Job? { jobs.first { $0.id == id } }
 
     private func headlessExited(_ id: String, status: Int32) async {
+        let summary = await jobStore.job(id).flatMap(Self.readSummary)
         try? await jobStore.update(id) {
             guard $0.state.isActive else { return }
             $0.exitCode = status
             $0.state = status == 0 ? .completed : .failed
             $0.finishedAt = .now
+            $0.summary = summary
         }
         await refreshJobs()
     }
 
+    private static func readSummary(_ job: Job) -> RunSummary? {
+        guard let path = job.logPath, let log = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        return AgentStream.summary(of: log)
+    }
+
+    /// Fills in summaries for headless jobs that finished while we weren't watching.
+    private func summarizeFinishedJobs(_ jobs: [Job]) async {
+        for job in jobs where job.mode == .headless && !job.state.isActive && job.summary == nil {
+            guard let summary = Self.readSummary(job) else { continue }
+            try? await jobStore.update(job.id) { $0.summary = summary }
+        }
+    }
+
+    /// Folders that would have let this job do what it was refused.
+    func foldersToAllow(for job: Job) -> [URL] {
+        guard let project = project(job.projectID), let summary = job.summary else { return [] }
+        return summary.directoriesToAllow(outside: project.repository)
+    }
+
+    /// Grants the folders a job was refused, then runs it again.
+    @discardableResult
+    func allowAndRerun(_ job: Job) async -> Job? {
+        guard var project = project(job.projectID) else { return nil }
+        for folder in foldersToAllow(for: job) where !project.allowedDirectories.contains(folder) {
+            project.allowedDirectories.append(folder)
+        }
+        updateProject(project)
+        guard let action = LaunchAction(rawValue: job.action) else { return nil }
+        return await launch(action, project: project.id, fullPrompt: job.instructions ?? job.prompt, label: job.prompt)
+    }
+
+    func allowFolder(_ folder: URL, for project: Project) {
+        var updated = project
+        let canonical = Project.canonical(folder)
+        guard !updated.allowedDirectories.contains(canonical) else { return }
+        updated.allowedDirectories.append(canonical)
+        updateProject(updated)
+    }
+
+    func disallowFolder(_ folder: URL, for project: Project) {
+        var updated = project
+        updated.allowedDirectories.removeAll { $0 == folder }
+        updateProject(updated)
+    }
+
     func refreshJobs() async {
         let tmux = prefs.tmux.map(Tmux.init)
-        let updated = await jobStore.refresh(tmux: tmux, executableName: "claude")
+        var updated = await jobStore.refresh(tmux: tmux, executableName: "claude")
+        if updated.contains(where: { $0.mode == .headless && !$0.state.isActive && $0.summary == nil && $0.logPath != nil }) {
+            await summarizeFinishedJobs(updated)
+            updated = await jobStore.all()
+        }
         for job in updated {
             let previous = lastStates[job.id]
             lastStates[job.id] = job.state
@@ -402,6 +463,9 @@ final class FactoryModel {
         case .waiting where previous == .running:
             content.title = "\(job.project): your input is needed"
             content.body = job.prompt
+        case .completed where job.neededPermission:
+            content.title = "\(job.project): the agent needed permission"
+            content.body = job.summary?.denials.prefix(2).map(\.summary).joined(separator: " · ") ?? job.prompt
         case .completed:
             content.title = "\(job.project): job finished"
             content.body = job.prompt

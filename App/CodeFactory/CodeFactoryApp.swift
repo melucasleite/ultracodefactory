@@ -52,6 +52,7 @@ struct FactoryCommands: Commands {
             Button("Triage") { actions?.launch(.triage) }
                 .keyboardShortcut("t", modifiers: [.command, .shift])
             Button("Open Session in Repository") { actions?.launch(.session) }
+            Button("Plan Backlog") { actions?.launch(.plan) }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
             Divider()
             Button("Show Factory Floor") { actions?.toggleJobs() }

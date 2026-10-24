@@ -45,6 +45,15 @@ Agents read card text and repository contents, so a malicious card or
 repository can try to steer them (prompt injection). Treat cards from
 untrusted sources the way you would treat untrusted code.
 
+## Folders outside the repository
+
+Agents run inside the project's repository and Claude Code refuses file access
+outside it. When a headless agent is refused, Ultra Code Factory lists exactly
+what was refused and offers **Allow & Re-run**, which adds the folder to the
+project's **Allowed Folders** (passed to Claude Code as `--add-dir`). You can
+review or remove allowed folders from the project's right-click menu. A cards
+folder that lives outside the repository is allowed automatically.
+
 ## Hardening in the code
 
 - Every process is started with an argument array (`execve`), never through a

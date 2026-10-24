@@ -217,6 +217,10 @@ gets `CODE_FACTORY_CARDS` (the project's cards folder) and
 `CODE_FACTORY_PROJECT` in its environment, so a skill always knows where its
 cards live.
 
+When a headless agent is refused something, such as reading a folder outside
+the repository, the job says exactly what it needed and offers **Allow &
+Re-run**. Allowed folders are listed in the project's right-click menu.
+
 Interactive consoles resize the agent's terminal to fit the window, so
 Claude Code redraws at the right width as you resize.
 

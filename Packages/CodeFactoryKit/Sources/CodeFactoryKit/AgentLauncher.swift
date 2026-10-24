@@ -109,7 +109,8 @@ public enum AgentLauncher {
 
         let process = Process()
         process.executableURL = claude
-        process.arguments = ["-p", trimmed] + config.agentArguments
+        process.arguments = ["-p", trimmed, "--output-format", "stream-json", "--verbose"]
+            + config.agentArguments + addDirArguments(project)
         process.currentDirectoryURL = repo
         process.environment = ProcessRunner.environment.merging(config.environment(for: project)) { _, new in new }
         process.standardInput = FileHandle.nullDevice
@@ -151,7 +152,7 @@ public enum AgentLauncher {
 
         var command = [claude.path]
         if !trimmed.isEmpty { command.append(trimmed) }
-        command += config.agentArguments
+        command += config.agentArguments + addDirArguments(project)
 
         try await Tmux(binary: tmuxURL).newSession(
             name: session,
@@ -169,6 +170,11 @@ public enum AgentLauncher {
             mode: .interactive,
             session: session
         )
+    }
+
+    /// `--add-dir` for every folder the project lets agents use beyond the repo.
+    static func addDirArguments(_ project: Project) -> [String] {
+        project.extraDirectories.flatMap { ["--add-dir", $0.path] }
     }
 
     /// Stops a job: kills its tmux session, or sends SIGTERM to a headless

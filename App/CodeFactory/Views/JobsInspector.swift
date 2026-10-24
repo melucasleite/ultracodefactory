@@ -85,6 +85,7 @@ struct JobRow: View {
                 TimelineView(.periodic(from: .now, by: 1)) { _ in
                     Text(stateLine).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
                 }
+                if job.neededPermission { permissionPanel }
             }
             Spacer(minLength: 0)
         }
@@ -111,11 +112,53 @@ struct JobRow: View {
         }
     }
 
+    /// What the agent was refused, and the one-click way past it.
+    private var permissionPanel: some View {
+        let denials = job.summary?.denials ?? []
+        let folders = model.foldersToAllow(for: job)
+        return VStack(alignment: .leading, spacing: 6) {
+            Label("Needed permission", systemImage: "lock.trianglebadge.exclamationmark")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Theme.hazardYellow)
+            ForEach(Array(denials.prefix(3).enumerated()), id: \.offset) { _, denial in
+                Text("• " + denial.summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            if denials.count > 3 {
+                Text("and \(denials.count - 3) more").font(.caption2).foregroundStyle(.tertiary)
+            }
+            if !folders.isEmpty {
+                Button {
+                    Task { await model.allowAndRerun(job) }
+                } label: {
+                    Label("Allow \(folders.map { ($0.path as NSString).abbreviatingWithTildeInPath }.joined(separator: ", ")) & Re-run",
+                          systemImage: "lock.open.fill")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(2)
+                }
+                .glassButton(prominent: true)
+                .tint(Theme.safetyOrange)
+                .help("Lets this project's agents read and write those folders from now on, then runs the job again")
+            } else {
+                Text("To allow commands like these, change the permission mode in Settings → Agents.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(8)
+        .glassPanel(cornerRadius: 10, tint: Theme.hazardYellow)
+        .padding(.top, 4)
+    }
+
     private var stateLine: String {
         switch job.state {
         case .running: "working · \(job.elapsed)"
         case .waiting: "waiting for you · \(job.elapsed)"
-        case .completed: "finished in \(job.elapsed)"
+        case .completed:
+            "finished in \(job.elapsed)" + (job.summary?.costUSD.map { String(format: " · $%.2f", $0) } ?? "")
         case .failed: "failed (exit \(job.exitCode ?? -1)) after \(job.elapsed)"
         case .stopped: "stopped after \(job.elapsed)"
         }

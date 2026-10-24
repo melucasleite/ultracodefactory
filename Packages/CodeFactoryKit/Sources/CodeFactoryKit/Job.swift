@@ -37,6 +37,13 @@ public struct Job: Identifiable, Codable, Hashable, Sendable {
     public var session: String?
     public var logPath: String?
     public var exitCode: Int32?
+    /// The full first message the agent received, so the job can be re-run.
+    public var instructions: String?
+    /// What a headless run reported when it finished.
+    public var summary: RunSummary?
+
+    /// True when the agent was refused something it asked for.
+    public var neededPermission: Bool { !(summary?.denials.isEmpty ?? true) }
 
     public init(
         id: String,

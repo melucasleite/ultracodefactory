@@ -55,6 +55,10 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func menu(for project: Project) -> some View {
+        Button("Plan Backlog", systemImage: LaunchAction.plan.symbol) {
+            Task { await model.planBacklog(for: project) }
+        }
+        Divider()
         Button("Reveal Repository in Finder", systemImage: "folder") { Finder.reveal(project.repository) }
         Button("Reveal Cards in Finder", systemImage: "tray.full") { Finder.reveal(project.cardsRoot) }
         Divider()
@@ -77,6 +81,19 @@ struct SidebarView: View {
                 var updated = project
                 updated.cardsOverride = nil
                 model.updateProject(updated)
+            }
+        }
+        Menu("Allowed Folders") {
+            ForEach(project.allowedDirectories, id: \.self) { folder in
+                Button("Stop Allowing \((folder.path as NSString).abbreviatingWithTildeInPath)") {
+                    model.disallowFolder(folder, for: project)
+                }
+            }
+            if !project.allowedDirectories.isEmpty { Divider() }
+            Button("Allow a Folder…") {
+                if let url = Finder.chooseFolder(message: "Let “\(project.name)” agents read and write this folder too, e.g. a reference project") {
+                    model.allowFolder(url, for: project)
+                }
             }
         }
         Divider()
