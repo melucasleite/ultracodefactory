@@ -26,6 +26,15 @@ final class ConsoleModel {
     /// The job and tmux binary, handed in by the window and kept current by it.
     var job: Job?
     @ObservationIgnored var tmuxURL: URL?
+    /// Where an interactive agent runs (its worktree or the repo), to find its transcript.
+    @ObservationIgnored var workingDirectory: URL?
+
+    /// The agent's actions, from its Claude Code transcript (or stream-json log).
+    private(set) var activity: [ActivityStep] = []
+    @ObservationIgnored private var activityParser = ActivityParser()
+    @ObservationIgnored private var activityFile: URL?
+    @ObservationIgnored private var activityOffset: UInt64 = 0
+    @ObservationIgnored private var activityRemainder = ""
 
     init(jobID: String) {
         self.jobID = jobID
@@ -51,6 +60,7 @@ final class ConsoleModel {
     private func poll() async {
         guard let job else { return }
         await applyFit()
+        readActivity(for: job)
         var next: String
         switch job.mode {
         case .interactive:
@@ -139,6 +149,39 @@ final class ConsoleModel {
             try? await Task.sleep(for: .milliseconds(120))
             await self?.poll()
         }
+    }
+
+    // MARK: Activity
+
+    /// Reads whatever the agent appended to its transcript since last time.
+    private func readActivity(for job: Job) {
+        if activityFile == nil {
+            switch job.mode {
+            case .headless:
+                activityFile = job.logPath.map { URL(filePath: $0) }
+            case .interactive:
+                let directory = job.worktree.map { URL(filePath: $0) } ?? workingDirectory
+                activityFile = directory.flatMap { ClaudeTranscript.file(for: $0, startedAt: job.startedAt) }
+            }
+        }
+        guard let file = activityFile, let handle = try? FileHandle(forReadingFrom: file) else { return }
+        defer { try? handle.close() }
+        let size = (try? handle.seekToEnd()) ?? 0
+        guard size > activityOffset else { return }
+        try? handle.seek(toOffset: activityOffset)
+        let data = (try? handle.readToEnd()) ?? Data()
+        activityOffset = size
+        var text = activityRemainder + String(decoding: data, as: UTF8.self)
+        // Hold back a partial last line until it's complete.
+        if let lastNewline = text.lastIndex(of: "\n") {
+            activityRemainder = String(text[text.index(after: lastNewline)...])
+            text = String(text[..<lastNewline])
+        } else {
+            activityRemainder = text
+            return
+        }
+        activityParser.ingest(text.split(separator: "\n"))
+        activity = activityParser.steps
     }
 
     // MARK: Helpers

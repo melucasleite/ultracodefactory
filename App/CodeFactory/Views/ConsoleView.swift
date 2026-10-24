@@ -10,7 +10,12 @@ struct ConsoleView: View {
     @State private var copied = false
     @State private var confirmStop = false
     @FocusState private var terminalFocused: Bool
+    @State private var tab: Tab = .terminal
+    @State private var follow = true
+    @State private var expanded: Set<String> = []
     @State private var textWidth: CGFloat = 0
+
+    enum Tab: String, CaseIterable { case terminal = "Terminal", activity = "Activity" }
     @State private var viewHeight: CGFloat = 0
 
     private func refit() {
@@ -28,7 +33,7 @@ struct ConsoleView: View {
             if let job = factory.job(console.jobID) {
                 VStack(spacing: 0) {
                     header(job)
-                    terminal
+                    if tab == .terminal { terminal } else { activityView }
                     if let question = console.question, job.state.isActive {
                         QuestionPanel(question: question) { console.choose($0) } submit: { console.send(.enter) }
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -46,6 +51,7 @@ struct ConsoleView: View {
         .background(FactoryBackdrop(animated: false))
         .onAppear {
             console.job = factory.job(console.jobID)
+            console.workingDirectory = console.job.flatMap { factory.project($0.projectID)?.repository }
             console.tmuxURL = factory.prefs.tmux
             console.start()
             refit()
@@ -63,6 +69,13 @@ struct ConsoleView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
+            Picker("View", selection: $tab) {
+                ForEach(Tab.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help("Terminal mirrors the agent's screen. Activity lists every command, edit and output in full.")
             if job.state.isActive, let attach = job.attachCommand {
                 Button {
                     Finder.copy(attach)
@@ -131,6 +144,51 @@ struct ConsoleView: View {
         }
     }
 
+    /// Every step the agent took, in full: what it said, each command or
+    /// edit, and the output, expandable.
+    private var activityView: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    if console.activity.isEmpty {
+                        Text("Waiting for the agent's first step…")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, minHeight: 120)
+                    }
+                    ForEach(console.activity) { step in
+                        ActivityRow(step: step, expanded: isExpanded(step)) { toggle(step) }
+                            .id(step.id)
+                    }
+                    Color.clear.frame(height: 1).id("activity-bottom")
+                }
+                .padding(12)
+            }
+            .background(TerminalPalette.background.opacity(0.92))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(alignment: .bottomTrailing) {
+                Toggle("Follow", isOn: $follow)
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .padding(10)
+                    .help("Keep the newest step in view")
+            }
+            .padding(.horizontal, 10)
+            .environment(\.colorScheme, .dark)
+            .onChange(of: console.activity.count) {
+                if follow { proxy.scrollTo("activity-bottom", anchor: .bottom) }
+            }
+            .onAppear { proxy.scrollTo("activity-bottom", anchor: .bottom) }
+        }
+    }
+
+    private func isExpanded(_ step: ActivityStep) -> Bool {
+        expanded.contains(step.id) || step.isError || (step.isRunning && step.id == console.activity.last?.id)
+    }
+
+    private func toggle(_ step: ActivityStep) {
+        if expanded.contains(step.id) { expanded.remove(step.id) } else { expanded.insert(step.id) }
+    }
+
     /// Physical keys go straight to the agent while the terminal has focus.
     private func handle(_ press: KeyPress) -> KeyPress.Result {
         guard console.canSend, !press.modifiers.contains(.command) else { return .ignored }
@@ -161,7 +219,7 @@ struct ConsoleView: View {
             Spacer()
             HStack(spacing: 4) {
                 ForEach([("↑", NamedKey.up), ("↓", .down), ("←", .left), ("→", .right),
-                         ("⏎", .enter), ("esc", .escape), ("tab", .tab), ("⌃C", .interrupt)], id: \.1) { label, key in
+                         ("⏎", .enter), ("esc", .escape), ("tab", .tab), ("⌃C", .interrupt), ("⌃O details", .details)], id: \.1) { label, key in
                     Button(label) { console.send(key) }
                         .font(.caption.monospaced())
                         .controlSize(.small)
@@ -261,5 +319,97 @@ enum TerminalMetrics {
         let columns = Int(((size.width - padding * 2) / cellWidth).rounded(.down))
         let rows = Int(((size.height - padding * 2) / lineHeight).rounded(.down))
         return (columns - 2, rows) // slack so rounding never wraps a full-width line
+    }
+}
+
+/// One step in the Activity timeline.
+private struct ActivityRow: View {
+    let step: ActivityStep
+    let expanded: Bool
+    var toggle: () -> Void
+    @State private var showAll = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button(action: toggle) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: icon)
+                        .foregroundStyle(tint)
+                        .frame(width: 16)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(step.title)
+                            .font(step.kind == .said ? .callout : .system(size: 12, design: .monospaced))
+                            .foregroundStyle(step.kind == .said ? Color.white.opacity(0.9) : TerminalPalette.foreground)
+                            .lineLimit(expanded ? nil : 2)
+                            .multilineTextAlignment(.leading)
+                            .textSelection(.enabled)
+                        if let subtitle = step.subtitle {
+                            Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    if step.isRunning {
+                        ProgressView().controlSize(.mini)
+                    } else if let duration = step.duration, step.kind == .tool {
+                        Text(Self.format(duration)).font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                    }
+                    if step.kind == .tool, step.output?.isEmpty == false {
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                            .font(.caption2).foregroundStyle(.tertiary)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if expanded, let output = step.output, !output.isEmpty {
+                let lines = output.split(separator: "\n", omittingEmptySubsequences: false)
+                let shown = showAll ? lines[...] : lines.prefix(40)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(shown.joined(separator: "\n"))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(step.isError ? Color.red.opacity(0.9) : TerminalPalette.foreground.opacity(0.75))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if lines.count > 40 {
+                        Button(showAll ? "Show less" : "Show all \(lines.count) lines") { showAll.toggle() }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                    }
+                }
+                .padding(8)
+                .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+                .padding(.leading, 24)
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background(step.isError ? Color.red.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var icon: String {
+        if step.kind == .said { return "text.bubble" }
+        if step.isError { return "xmark.octagon.fill" }
+        switch step.tool {
+        case "Bash": return "terminal"
+        case "Read": return "doc.text"
+        case "Edit", "MultiEdit": return "pencil"
+        case "Write": return "square.and.pencil"
+        case "Grep", "Glob": return "magnifyingglass"
+        case "Task", "Agent": return "person.2"
+        case "WebFetch", "WebSearch": return "globe"
+        case "TodoWrite": return "checklist"
+        default: return "wrench.and.screwdriver"
+        }
+    }
+
+    private var tint: Color {
+        if step.isError { return .red }
+        if step.kind == .said { return Theme.safetyOrange }
+        return step.isRunning ? Theme.hazardYellow : Color.white.opacity(0.6)
+    }
+
+    private static func format(_ seconds: TimeInterval) -> String {
+        seconds < 1 ? "<1s" : seconds < 60 ? "\(Int(seconds))s" : "\(Int(seconds) / 60)m \(Int(seconds) % 60)s"
     }
 }

@@ -14,6 +14,8 @@ public enum NamedKey: String, CaseIterable, Sendable {
     case space = "Space"
     case backspace = "BSpace"
     case interrupt = "C-c"
+    /// Claude Code's "show details" toggle (expands tool calls and output).
+    case details = "C-o"
 }
 
 /// Thin, injection-safe wrapper around the tmux CLI.
